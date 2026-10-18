@@ -1,0 +1,28 @@
+# Secrets
+secrets.yaml
+*.env
+.env
+
+# Home Assistant Laufzeitdaten
+.storage/
+.cloud/
+*.db
+*.db-shm
+*.db-wal
+*.log
+home-assistant.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+~$*
+
+# Vertrauliche Herstellerunterlagen (nicht veröffentlichen)
+Modbus_Protocol_smart1_0_a.pdf
