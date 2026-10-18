@@ -4,7 +4,7 @@ Eigene Home-Assistant-Integration für das Rennergy Energiemanagement (smart1-St
 Wärmepumpe, Heizstab, Pufferspeicher, Heizkreisen, PV, Batterie und Wallbox. Die Verbindung
 läuft lokal über Modbus TCP.
 
-## Funktionen (v0.1)
+## Funktionen
 
 - **Einrichtung über die Oberfläche:** IP-Adresse eingeben, danach die gewünschten Bereiche
   auswählen (Energie, Batterie, Wärmepumpe, Heizstab, Puffer, Warmwasser, Heizkreise, Kessel,
@@ -18,7 +18,7 @@ läuft lokal über Modbus TCP.
 - **Seitenleiste „Rennergy“:** Energiefluss, Heizung und Speicher, Statistik, Steuerung und alle Werte.
 - Pro Bereich ein eigenes Gerät, alle unter dem Hauptgerät „Rennergy EMS“.
 
-## Statistiken (v0.2)
+## Statistiken
 
 In den Integrationseinstellungen unter **Zähler** lassen sich vorhandene HA-Sensoren zuordnen:
 PV (z. B. Victron), Wärmemengenzähler der Wärmepumpe, Stromzähler der Wärmepumpe,
@@ -72,7 +72,11 @@ Außerdem muss das Mapping mit **Auto Address** geladen sein (Standard-Startregi
 .\tools\scan.ps1 -Ip 192.168.x.x
 ```
 
-## Unterlagen
+## Updates
 
-- `CCGX-Modbus-TCP-register-list-2.90.xlsx`: Victron-GX-Registerliste
-- Die Protokollbeschreibung der smart1-Steuerung ist vertraulich und deshalb nicht im Repository.
+Neue Versionen erscheinen als [Release](https://github.com/atze09/home-assistant-rennergy/releases).
+HACS zeigt sie als Update an. Nach dem Aktualisieren Home Assistant neu starten.
+
+## Lizenz
+
+[MIT](LICENSE)
