@@ -1,0 +1,111 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Rennergy EMS",
+        "description": "Enter the IP address of your Rennergy EMS. Modbus TCP must be enabled on the controller.",
+        "data": {
+          "host": "IP address / host",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "start_address": "First register of the item map"
+        }
+      },
+      "modules": {
+        "title": "Select areas",
+        "description": "Found controller {serial} (firmware {version}) with {count} values. Choose which areas should be added to Home Assistant. You can change this later.",
+        "data": {
+          "modules": "Areas",
+          "scan_interval": "Update interval"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect. Check IP address, port and that Modbus TCP is enabled.",
+      "no_items": "Connected, but no values were found. Use \"Auto Address\" in the Modbus configuration of the controller.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This controller is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Rennergy EMS settings",
+        "menu_options": {
+          "modules": "Areas and update interval",
+          "meters": "Meters (heat, electricity, PV)",
+          "actions": "Actions (hot water quick load)"
+        }
+      },
+      "modules": {
+        "title": "Areas",
+        "data": {
+          "modules": "Areas",
+          "scan_interval": "Update interval"
+        }
+      },
+      "meters": {
+        "title": "Meters",
+        "description": "Choose Home Assistant sensors used for the statistics. Energy meters must be cumulative counters (e.g. kWh, MWh, GJ). Empty fields are not used.",
+        "data": {
+          "pv_energy": "PV production energy (e.g. Victron)",
+          "pv_power": "PV production power (e.g. Victron)",
+          "heat_pump_heat_energy": "Heat pump heat energy",
+          "heat_pump_heat_power": "Heat pump heat power",
+          "heat_pump_electric_energy": "Heat pump electricity",
+          "heat_pump_electric_power": "Heat pump electric power",
+          "heating_circuit_1_heat_energy": "Heating circuit 1 heat energy",
+          "heating_circuit_2_heat_energy": "Heating circuit 2 heat energy",
+          "stove_heat_energy": "Stove (water jacket) heat energy",
+          "stove_heat_power": "Stove (water jacket) heat power"
+        }
+      },
+      "actions": {
+        "title": "Actions",
+        "description": "The \"Hot water quick load\" button switches the selected item to manual/on for the given duration and back to automatic afterwards. Without a selection the item with \"Schnelladung\" in its name is used.",
+        "data": {
+          "hot_water_item": "Item for hot water quick load",
+          "hot_water_duration": "Duration"
+        }
+      }
+    }
+  },
+  "selector": {
+    "modules": {
+      "options": {
+        "energy": "Energy (PV, grid, consumption)",
+        "battery": "Battery",
+        "heat_pump": "Heat pump",
+        "heating_rod": "Heating rod",
+        "buffer": "Buffer tank",
+        "hot_water": "Hot water",
+        "heating_circuits": "Heating circuits",
+        "boiler": "Boiler (wood / oil)",
+        "ecar": "Electric car / wallbox",
+        "system": "System and internal values"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "hot_water_quick_load": { "name": "Hot water quick load" },
+      "all_automatic": { "name": "Everything to automatic" }
+    },
+    "sensor": {
+      "today": { "name": "{name} today" },
+      "last_30_days": { "name": "{name} last 30 days" },
+      "year": { "name": "{name} this year" }
+    },
+    "select": {
+      "mode": {
+        "name": "{name} mode",
+        "state": {
+          "auto": "Automatic",
+          "manual": "Manual"
+        }
+      }
+    }
+  }
+}

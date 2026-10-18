@@ -1,0 +1,111 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Rennergy EMS",
+        "description": "Gib die IP-Adresse deines Rennergy EMS ein. Modbus TCP muss in der Steuerung aktiviert sein.",
+        "data": {
+          "host": "IP-Adresse / Hostname",
+          "port": "Port",
+          "unit_id": "Modbus Unit-ID",
+          "start_address": "Erstes Register der Zuordnung"
+        }
+      },
+      "modules": {
+        "title": "Bereiche auswählen",
+        "description": "Steuerung {serial} (Firmware {version}) mit {count} Werten gefunden. Wähle aus, welche Bereiche in Home Assistant angelegt werden. Das kannst du später ändern.",
+        "data": {
+          "modules": "Bereiche",
+          "scan_interval": "Abfrageintervall"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Keine Verbindung. Prüfe IP-Adresse, Port und ob Modbus TCP aktiviert ist.",
+      "no_items": "Verbunden, aber keine Werte gefunden. Nutze „Auto Address“ in der Modbus-Konfiguration der Steuerung.",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Diese Steuerung ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Rennergy EMS Einstellungen",
+        "menu_options": {
+          "modules": "Bereiche und Abfrageintervall",
+          "meters": "Zähler (Wärmemengen, Strom, PV)",
+          "actions": "Aktionen (Warmwasser-Schnellladung)"
+        }
+      },
+      "modules": {
+        "title": "Bereiche",
+        "data": {
+          "modules": "Bereiche",
+          "scan_interval": "Abfrageintervall"
+        }
+      },
+      "meters": {
+        "title": "Zähler",
+        "description": "Wähle Sensoren aus Home Assistant, die in die Statistiken einfließen. Energiezähler müssen fortlaufend zählen (z. B. kWh, MWh, GJ). Leere Felder werden nicht verwendet.",
+        "data": {
+          "pv_energy": "PV-Erzeugung Energie (z. B. Victron)",
+          "pv_power": "PV-Erzeugung Leistung (z. B. Victron)",
+          "heat_pump_heat_energy": "Wärmepumpe Wärmemenge",
+          "heat_pump_heat_power": "Wärmepumpe Wärmeleistung",
+          "heat_pump_electric_energy": "Wärmepumpe Stromverbrauch",
+          "heat_pump_electric_power": "Wärmepumpe elektrische Leistung",
+          "heating_circuit_1_heat_energy": "Heizkreis 1 Wärmemenge",
+          "heating_circuit_2_heat_energy": "Heizkreis 2 Wärmemenge",
+          "stove_heat_energy": "Ofen (Wassertasche) Wärmemenge",
+          "stove_heat_power": "Ofen (Wassertasche) Wärmeleistung"
+        }
+      },
+      "actions": {
+        "title": "Aktionen",
+        "description": "Der Knopf „Warmwasser Schnellladung“ setzt das gewählte Element für die angegebene Dauer auf Hand/Ein und danach zurück auf Automatik. Ohne Auswahl wird das Element mit „Schnelladung“ im Namen verwendet.",
+        "data": {
+          "hot_water_item": "Element für die Warmwasser-Schnellladung",
+          "hot_water_duration": "Dauer"
+        }
+      }
+    }
+  },
+  "selector": {
+    "modules": {
+      "options": {
+        "energy": "Energie (PV, Netz, Verbrauch)",
+        "battery": "Batterie",
+        "heat_pump": "Wärmepumpe",
+        "heating_rod": "Heizstab",
+        "buffer": "Pufferspeicher",
+        "hot_water": "Warmwasser",
+        "heating_circuits": "Heizkreise",
+        "boiler": "Kessel (Holz / Öl)",
+        "ecar": "E-Auto / Wallbox",
+        "system": "System und interne Werte"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "hot_water_quick_load": { "name": "Warmwasser Schnellladung" },
+      "all_automatic": { "name": "Alles auf Automatik" }
+    },
+    "sensor": {
+      "today": { "name": "{name} heute" },
+      "last_30_days": { "name": "{name} letzte 30 Tage" },
+      "year": { "name": "{name} dieses Jahr" }
+    },
+    "select": {
+      "mode": {
+        "name": "{name} Modus",
+        "state": {
+          "auto": "Automatik",
+          "manual": "Hand"
+        }
+      }
+    }
+  }
+}
