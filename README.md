@@ -20,18 +20,40 @@ läuft lokal über Modbus TCP.
 
 ## Statistiken
 
-In den Integrationseinstellungen unter **Zähler** lassen sich vorhandene HA-Sensoren zuordnen:
-PV (z. B. Victron), Wärmemengenzähler der Wärmepumpe, Stromzähler der Wärmepumpe,
-Wärmemengenzähler für Heizkreis 1 und 2 sowie für den Ofen mit Wassertasche.
+In den Integrationseinstellungen unter **Zähler** lassen sich vorhandene HA-Sensoren zuordnen.
+Bitte jeweils die **durchlaufenden Gesamtzähler** wählen:
+- PV, auch mehrere Anlagen, die summiert werden
+- Wärmemengenzähler der Wärmepumpe, Stromzähler der Wärmepumpe
+- Wärmemengenzähler für Heizkreis 1 und 2 sowie für den Ofen mit Wassertasche
 
 Daraus berechnet die Integration jeweils für **heute, diese Woche, diesen Monat und dieses Jahr**:
 - Energie je Zähler sowie Wärmeerzeugung gesamt (Wärmepumpe + Ofen + Heizstab)
-- **Tages-, Wochen-, Monats- und Jahresarbeitszahl** der Wärmepumpe und den **COP aktuell**.
-  Den COP gibt es mit Leistungssensoren sofort, sonst als Mittel der letzten 15 Minuten.
+- **Tages-, Wochen-, Monats- und Jahresarbeitszahl** der Wärmepumpe
 - **Heizstab:** Energie, Laufzeit und durchschnittliche Leistung
 - **Autarkie** und **Eigenverbrauchsquote**
 
-Die Statistiken zählen ab der Einrichtung und bleiben über Neustarts erhalten.
+Die Energiewerte stammen aus der **Langzeitstatistik von Home Assistant**. Sie stimmen also sofort,
+auch rückwirkend für den laufenden Monat und das laufende Jahr.
+
+### Wärmepumpe: Faktor, Soll-Werte, Gütegrad
+
+Unter **Wärmepumpe** in den Einstellungen:
+- **Faktor = Arbeitszahl × Hub**, wobei Hub = Vorlauf der WP − Außentemperatur. Den Faktor gibt es
+  aktuell und als Mittel für Tag, Woche, Monat und Jahr.
+- **Datenblatt-Werte** (z. B. `A2/W35 = 3,8`, ein Punkt pro Zeile). Daraus berechnet die
+  Integration für die aktuelle Außen- und Vorlauftemperatur **COP Soll**, **Faktor Soll** und
+  **Soll/Ist in %**.
+- **Gütegrad**: COP im Verhältnis zum idealen Carnot-COP. Den Wert gibt es auch ohne Datenblatt.
+
+## Anlagenschema
+
+Die Übersichtsseite im Panel zeigt die Anlage als Schema:
+- Heizkreise, Heizstab, Kamin und Wärmepumpe mit Speicher
+- Vor- und Rücklauf an den Rohren, die animiert „fließen“, solange ein Kreis aktiv ist
+- Speicher mit Farbverlauf nach Temperatur
+- Stellung des Umschaltventils Warmwasser/Heizung
+
+Die Sensoren dafür werden unter **Anlagenschema** in den Einstellungen gewählt.
 
 ## Aktionen
 
