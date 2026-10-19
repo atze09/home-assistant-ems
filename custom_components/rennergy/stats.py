@@ -1,63 +1,75 @@
-"""Statistics of the Rennergy EMS: period energies, work ratios, runtimes.
+"""Statistics of the Rennergy EMS.
 
-External meters (heat meters, heat pump electricity) and internal Rennergy
-meters are integrated into per period sums (day, week, month, year). The
-sums are stored, so they survive restarts.
+* Energy per period (day, week, month, year) is read from Home Assistant's
+  long-term statistics, so it is correct right away (including history) and
+  robust against counter resets or glitches at startup.
+* Heat pump factor (COP x temperature lift), datasheet targets and heating
+  rod runtime are integrated by the integration itself and stored.
 """
 
 from __future__ import annotations
 
-from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 from typing import Any
 
+from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder.statistics import statistic_during_period
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.core import HomeAssistant, State, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
-    async_track_state_change_event,
     async_track_time_change,
+    async_track_time_interval,
 )
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_DATASHEET,
     CONF_HC1_HEAT_ENERGY,
     CONF_HC2_HEAT_ENERGY,
     CONF_HP_ELECTRIC_ENERGY,
     CONF_HP_ELECTRIC_POWER,
+    CONF_HP_FLOW_TEMP,
     CONF_HP_HEAT_ENERGY,
     CONF_HP_HEAT_POWER,
+    CONF_HP_RUNNING_W,
+    CONF_OUTDOOR_TEMP,
     CONF_PV_ENERGY,
     CONF_PV_POWER,
     CONF_STOVE_HEAT_ENERGY,
     CONF_STOVE_HEAT_POWER,
+    DEFAULT_HP_RUNNING_W,
     DOMAIN,
     PERIODS,
 )
 from .coordinator import RennergyCoordinator
+from .datasheet import carnot_cop, parse_datasheet, target_cop
 from .discovery import Item
 
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
 SAVE_DELAY = 60
-COP_WINDOW = timedelta(minutes=15)
+REFRESH_INTERVAL = timedelta(minutes=5)
 # Heating rod counts as running above this power.
 HEATING_ROD_ON_W = 20
+# Larger jumps of an energy counter are treated as glitches, not energy.
+MAX_PLAUSIBLE_KW = 100.0
 
-_ENERGY_TO_KWH = {
-    "Wh": 0.001,
-    "kWh": 1.0,
-    "MWh": 1000.0,
-    "GJ": 277.7778,
-    "MJ": 0.2777778,
-}
+_ENERGY_TO_KWH = {"Wh": 0.001, "kWh": 1.0, "MWh": 1000.0, "GJ": 277.7778, "MJ": 0.2777778}
 _POWER_TO_W = {"W": 1.0, "kW": 1000.0, "MW": 1_000_000.0}
 
-# Energy sources: key -> option holding the external entity.
+HEATING_ROD = "heating_rod"
+HEATING_ROD_RUNTIME = "heating_rod_runtime"
+GRID_IMPORT = "grid_import"
+GRID_EXPORT = "grid_export"
+CONSUMPTION = "consumption"
+HP_FACTOR = "hp_factor"
+
+# External energy sources: key -> option.
 EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
     "pv": CONF_PV_ENERGY,
     "hp_heat": CONF_HP_HEAT_ENERGY,
@@ -66,18 +78,25 @@ EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
     "hc2_heat": CONF_HC2_HEAT_ENERGY,
     "stove_heat": CONF_STOVE_HEAT_ENERGY,
 }
-HEATING_ROD = "heating_rod"
-HEATING_ROD_RUNTIME = "heating_rod_runtime"
-GRID_IMPORT = "grid_import"
-GRID_EXPORT = "grid_export"
-CONSUMPTION = "consumption"
-# Internal sources: key -> role of the Rennergy meter.
+EXTERNAL_POWER_SOURCES: dict[str, str] = {
+    "pv": CONF_PV_POWER,
+    "hp_heat": CONF_HP_HEAT_POWER,
+    "hp_electric": CONF_HP_ELECTRIC_POWER,
+    "stove_heat": CONF_STOVE_HEAT_POWER,
+}
+# Internal sources: key -> role of the Rennergy meter (its yearly counter).
 INTERNAL_ENERGY_SOURCES: dict[str, str] = {
     HEATING_ROD: "heating_rod_power",
     GRID_IMPORT: "grid_import",
     GRID_EXPORT: "grid_export",
     CONSUMPTION: "total_consumption",
 }
+
+
+def _as_list(value: Any) -> list[str]:
+    if not value:
+        return []
+    return [value] if isinstance(value, str) else list(value)
 
 
 def period_key(period: str, now: datetime) -> str:
@@ -92,73 +111,53 @@ def period_key(period: str, now: datetime) -> str:
     return str(local.year)
 
 
+def period_start(period: str, now: datetime) -> datetime:
+    start = dt_util.start_of_local_day(dt_util.as_local(now))
+    if period == "week":
+        return start - timedelta(days=start.weekday())
+    if period == "month":
+        return start.replace(day=1)
+    if period == "year":
+        return start.replace(month=1, day=1)
+    return start
+
+
 class PeriodSums:
-    """Sums of increments per period plus an all time total."""
+    """Sums per period plus an all time total, for several named values."""
 
     def __init__(self, data: dict[str, Any] | None = None) -> None:
         data = data or {}
-        self.total: float = data.get("total", 0.0)
         self.periods: dict[str, dict[str, Any]] = data.get("periods", {})
 
-    def roll(self, now: datetime) -> None:
+    def _roll(self, now: datetime) -> None:
         for period in PERIODS:
             key = period_key(period, now)
             current = self.periods.get(period)
             if current is None or current["key"] != key:
-                self.periods[period] = {
-                    "key": key,
-                    "sum": 0.0,
-                    "previous": current["sum"] if current else None,
-                }
+                self.periods[period] = {"key": key, "values": {}}
 
-    def add(self, amount: float, now: datetime) -> None:
-        self.roll(now)
-        self.total += amount
+    def add(self, values: dict[str, float], now: datetime) -> None:
+        self._roll(now)
         for period in PERIODS:
-            self.periods[period]["sum"] += amount
+            sums = self.periods[period]["values"]
+            for name, amount in values.items():
+                sums[name] = sums.get(name, 0.0) + amount
 
-    def value(self, period: str, now: datetime) -> float:
-        self.roll(now)
-        return self.periods[period]["sum"]
-
-    def as_dict(self) -> dict[str, Any]:
-        return {"total": self.total, "periods": self.periods}
-
-
-class CounterIntegrator(PeriodSums):
-    """Turns readings of a (possibly resetting) energy counter into sums."""
-
-    def __init__(self, data: dict[str, Any] | None = None) -> None:
-        super().__init__(data)
-        self.last: float | None = (data or {}).get("last")
-        self.source: str | None = (data or {}).get("source")
-
-    def reading(self, value: float, now: datetime) -> None:
-        last = self.last
-        if last is None:
-            self.last = value
-            self.roll(now)
-            return
-        if value >= last:
-            delta = value - last
-        elif value < last * 0.5 or value < 1.0:
-            # Counter was reset (daily / yearly counter or meter exchange).
-            delta = value
-        else:
-            # Small decrease: rounding or a glitch, ignore it.
-            return
-        self.last = value
-        self.add(delta, now)
+    def get(self, period: str, name: str, now: datetime) -> float:
+        self._roll(now)
+        return self.periods[period]["values"].get(name, 0.0)
 
     def as_dict(self) -> dict[str, Any]:
-        return {**super().as_dict(), "last": self.last, "source": self.source}
+        return {"periods": self.periods}
 
 
-@dataclass
-class _Sample:
-    time: datetime
-    heat: float
-    electric: float
+def _float_state(state: State | None) -> float | None:
+    if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+        return None
+    try:
+        return float(state.state)
+    except ValueError:
+        return None
 
 
 class StatsManager:
@@ -174,100 +173,59 @@ class StatsManager:
     ) -> None:
         self.hass = hass
         self.coordinator = coordinator
+        self._entry_id = entry_id
         self._store: Store[dict[str, Any]] = Store(
-            hass, STORAGE_VERSION, f"{DOMAIN}.stats.{entry_id}"
+            hass, STORAGE_VERSION, f"{DOMAIN}.stats_v2.{entry_id}"
         )
-        self.external: dict[str, str] = {
-            key: options[option]
+        self.external: dict[str, list[str]] = {
+            key: _as_list(options.get(option))
             for key, option in EXTERNAL_ENERGY_SOURCES.items()
             if options.get(option)
         }
-        self.power_sensors: dict[str, str] = {
-            key: options[option]
-            for key, option in (
-                ("pv", CONF_PV_POWER),
-                ("hp_heat", CONF_HP_HEAT_POWER),
-                ("hp_electric", CONF_HP_ELECTRIC_POWER),
-                ("stove_heat", CONF_STOVE_HEAT_POWER),
-            )
+        self.power_sensors: dict[str, list[str]] = {
+            key: _as_list(options.get(option))
+            for key, option in EXTERNAL_POWER_SOURCES.items()
             if options.get(option)
         }
+        self.roles = roles
         self.heating_rod: Item | None = roles.get("heating_rod_power")
-        # Rennergy meters integrated from their yearly counter.
         self.internal: dict[str, Item] = {
             key: roles[role]
             for key, role in INTERNAL_ENERGY_SOURCES.items()
             if role in roles
         }
-        self.sums: dict[str, PeriodSums] = {}
-        self._last_rod_update: datetime | None = None
-        self._cop_samples: deque[_Sample] = deque()
+        self.datasheet = parse_datasheet(options.get(CONF_DATASHEET) or "")
+        self.flow_sensor: str | None = options.get(CONF_HP_FLOW_TEMP)
+        self.outdoor_sensor: str | None = options.get(CONF_OUTDOOR_TEMP)
+        self.running_w: float = options.get(CONF_HP_RUNNING_W, DEFAULT_HP_RUNNING_W)
+
+        # Energy per source and period from the long-term statistics (kWh).
+        self._energy: dict[str, dict[str, float | None]] = {}
+        self._runtime = PeriodSums()
+        self._factor = PeriodSums()
+        self._last_totals: dict[str, float] = {}
+        self._last_tick: datetime | None = None
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[Callable[[], None]] = []
 
-    @property
-    def energy_sources(self) -> list[str]:
-        return [*self.external, *self.internal]
-
-    def autarky(self, period: str) -> float | None:
-        """Share of consumption not covered by the grid, in %."""
-        grid = self.energy(GRID_IMPORT, period)
-        consumption = self.energy(CONSUMPTION, period)
-        if grid is None or not consumption or consumption < 0.05:
-            return None
-        return max(0.0, min(100.0, (1 - grid / consumption) * 100))
-
-    def self_consumption(self, period: str) -> float | None:
-        """Share of PV energy used on site, in %."""
-        pv = self.energy("pv", period)
-        export = self.energy(GRID_EXPORT, period)
-        if export is None or not pv or pv < 0.05:
-            return None
-        return max(0.0, min(100.0, (1 - export / pv) * 100))
-
-    @property
-    def has_work_ratio(self) -> bool:
-        return "hp_heat" in self.external and "hp_electric" in self.external
-
-    @property
-    def has_cop(self) -> bool:
-        return self.has_work_ratio or (
-            "hp_heat" in self.power_sensors and "hp_electric" in self.power_sensors
-        )
+    # ---------- lifecycle ----------
 
     async def async_start(self) -> None:
         stored = await self._store.async_load() or {}
-        for key in self.energy_sources:
-            integrator = CounterIntegrator(stored.get(key))
-            source = self.external.get(key) or f"item:{self.internal[key].uid}"
-            if integrator.source != source:
-                # Another meter was assigned: continue the sums, but do not
-                # take the difference between two unrelated counters.
-                integrator.last = None
-                integrator.source = source
-            self.sums[key] = integrator
-        if self.heating_rod is not None:
-            self.sums[HEATING_ROD_RUNTIME] = PeriodSums(stored.get(HEATING_ROD_RUNTIME))
-            self._last_rod_update = dt_util.utcnow()
-
-        for key, entity_id in self.external.items():
-            state = self.hass.states.get(entity_id)
-            if state is not None:
-                self._read_external(key, state)
-        if self.external or self.power_sensors:
-            self._unsubs.append(
-                async_track_state_change_event(
-                    self.hass,
-                    [*self.external.values(), *self.power_sensors.values()],
-                    self._on_state_change,
-                )
-            )
-        self._unsubs.append(self.coordinator.async_add_listener(self._on_coordinator))
-        # Make period sums jump to zero right after midnight.
+        self._runtime = PeriodSums(stored.get(HEATING_ROD_RUNTIME))
+        self._factor = PeriodSums(stored.get(HP_FACTOR))
+        self._unsubs.append(self.coordinator.async_add_listener(self._on_tick))
         self._unsubs.append(
-            async_track_time_change(self.hass, self._on_midnight, hour=0, minute=0, second=1)
+            async_track_time_interval(self.hass, self._async_refresh, REFRESH_INTERVAL)
         )
-        self._on_coordinator()
+        # Period sums start from zero right after midnight.
+        self._unsubs.append(
+            async_track_time_change(self.hass, self._async_refresh, hour=0, minute=0, second=5)
+        )
+
+    async def async_after_setup(self) -> None:
+        """First refresh, once our own entities exist."""
+        await self._async_refresh()
 
     async def async_stop(self) -> None:
         for unsub in self._unsubs:
@@ -280,15 +238,38 @@ class StatsManager:
         self._listeners.append(update)
         return lambda: self._listeners.remove(update)
 
+    # ---------- what is available ----------
+
+    @property
+    def energy_sources(self) -> list[str]:
+        return [*self.external, *self.internal]
+
+    @property
+    def has_work_ratio(self) -> bool:
+        return "hp_heat" in self.external and "hp_electric" in self.external
+
+    @property
+    def has_cop(self) -> bool:
+        return "hp_heat" in self.power_sensors and "hp_electric" in self.power_sensors
+
+    @property
+    def has_lift(self) -> bool:
+        return self.flow_sensor is not None and (
+            self.outdoor_sensor is not None or "outdoor_temp" in self.roles
+        )
+
+    @property
+    def has_factor(self) -> bool:
+        return self.has_work_ratio and self.has_lift
+
+    @property
+    def has_target(self) -> bool:
+        return bool(self.datasheet)
+
     # ---------- values ----------
 
     def energy(self, source: str, period: str) -> float | None:
-        sums = self.sums.get(source)
-        return None if sums is None else sums.value(period, dt_util.utcnow())
-
-    def runtime_hours(self, period: str) -> float | None:
-        sums = self.sums.get(HEATING_ROD_RUNTIME)
-        return None if sums is None else sums.value(period, dt_util.utcnow()) / 3600
+        return self._energy.get(source, {}).get(period)
 
     def work_ratio(self, period: str) -> float | None:
         heat = self.energy("hp_heat", period)
@@ -297,104 +278,233 @@ class StatsManager:
             return None
         return heat / electric
 
-    def cop(self) -> float | None:
-        heat_w = self._power("hp_heat")
-        electric_w = self._power("hp_electric")
-        if heat_w is not None and electric_w is not None:
-            return heat_w / electric_w if electric_w > 50 else None
-        if len(self._cop_samples) < 2:
+    def autarky(self, period: str) -> float | None:
+        grid = self.energy(GRID_IMPORT, period)
+        consumption = self.energy(CONSUMPTION, period)
+        if grid is None or not consumption or consumption < 0.05:
             return None
-        first, last = self._cop_samples[0], self._cop_samples[-1]
-        electric = last.electric - first.electric
-        if electric < 0.01:
+        return max(0.0, min(100.0, (1 - grid / consumption) * 100))
+
+    def self_consumption(self, period: str) -> float | None:
+        pv = self.energy("pv", period)
+        export = self.energy(GRID_EXPORT, period)
+        if export is None or not pv or pv < 0.05:
             return None
-        return (last.heat - first.heat) / electric
+        return max(0.0, min(100.0, (1 - export / pv) * 100))
+
+    def runtime_hours(self, period: str) -> float | None:
+        if self.heating_rod is None:
+            return None
+        return self._runtime.get(period, "seconds", dt_util.utcnow()) / 3600
 
     def power(self, source: str) -> float | None:
-        return self._power(source)
+        """Sum of the power sensors of a source in W."""
+        total = None
+        for entity_id in self.power_sensors.get(source, []):
+            state = self.hass.states.get(entity_id)
+            value = _float_state(state)
+            if value is None:
+                continue
+            unit = state.attributes.get("unit_of_measurement", "W")
+            total = (total or 0.0) + value * _POWER_TO_W.get(unit, 1.0)
+        return total
+
+    def flow_temp(self) -> float | None:
+        return _float_state(self.hass.states.get(self.flow_sensor)) if self.flow_sensor else None
+
+    def outdoor_temp(self) -> float | None:
+        if self.outdoor_sensor:
+            return _float_state(self.hass.states.get(self.outdoor_sensor))
+        item = self.roles.get("outdoor_temp")
+        data = self.coordinator.data or {}
+        if item is None or item.address not in data:
+            return None
+        return data[item.address][0]
+
+    def lift(self) -> float | None:
+        flow, outdoor = self.flow_temp(), self.outdoor_temp()
+        return None if flow is None or outdoor is None else flow - outdoor
+
+    def hp_running(self) -> bool:
+        electric = self.power("hp_electric")
+        if electric is not None:
+            return electric > self.running_w
+        heat = self.power("hp_heat")
+        return bool(heat and heat > 0)
+
+    def cop(self) -> float | None:
+        if not self.hp_running():
+            return None
+        heat, electric = self.power("hp_heat"), self.power("hp_electric")
+        if heat is None or not electric:
+            return None
+        return heat / electric
+
+    def cop_target(self) -> float | None:
+        flow, outdoor = self.flow_temp(), self.outdoor_temp()
+        if flow is None or outdoor is None:
+            return None
+        return target_cop(self.datasheet, outdoor, flow)
+
+    def factor(self) -> float | None:
+        cop, lift = self.cop(), self.lift()
+        return None if cop is None or lift is None else cop * lift
+
+    def factor_target(self) -> float | None:
+        cop, lift = self.cop_target(), self.lift()
+        return None if cop is None or lift is None else cop * lift
+
+    def efficiency(self) -> float | None:
+        """Carnot efficiency (Gütegrad) in %."""
+        cop, flow, outdoor = self.cop(), self.flow_temp(), self.outdoor_temp()
+        if cop is None or flow is None or outdoor is None:
+            return None
+        return cop / carnot_cop(flow, outdoor) * 100
+
+    def period_lift(self, period: str) -> float | None:
+        now = dt_util.utcnow()
+        heat = self._factor.get(period, "heat", now)
+        return self._factor.get(period, "heat_lift", now) / heat if heat > 0.5 else None
+
+    def period_factor(self, period: str) -> float | None:
+        now = dt_util.utcnow()
+        heat = self._factor.get(period, "heat", now)
+        electric = self._factor.get(period, "electric", now)
+        lift = self.period_lift(period)
+        if lift is None or electric < 0.1:
+            return None
+        return heat / electric * lift
+
+    def period_factor_target(self, period: str) -> float | None:
+        now = dt_util.utcnow()
+        heat = self._factor.get(period, "heat", now)
+        expected = self._factor.get(period, "expected_electric", now)
+        lift = self.period_lift(period)
+        if lift is None or expected < 0.1:
+            return None
+        return heat / expected * lift
+
+    def period_target_ratio(self, period: str) -> float | None:
+        """Actual vs. datasheet performance in % (100 % = as specified)."""
+        now = dt_util.utcnow()
+        electric = self._factor.get(period, "electric", now)
+        expected = self._factor.get(period, "expected_electric", now)
+        if electric < 0.1 or expected < 0.1:
+            return None
+        return expected / electric * 100
+
+    def target_ratio(self) -> float | None:
+        cop, target = self.cop(), self.cop_target()
+        return None if cop is None or not target else cop / target * 100
 
     # ---------- internals ----------
 
-    def _power(self, key: str) -> float | None:
-        entity_id = self.power_sensors.get(key)
-        state = entity_id and self.hass.states.get(entity_id)
-        if not state or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return None
-        try:
-            value = float(state.state)
-        except ValueError:
-            return None
-        return value * _POWER_TO_W.get(state.attributes.get("unit_of_measurement", "W"), 1.0)
+    def _entity_ids(self, source: str) -> list[str]:
+        if source in self.external:
+            return self.external[source]
+        item = self.internal.get(source)
+        if item is None:
+            return []
+        registry = er.async_get(self.hass)
+        entity_id = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{self.coordinator.system.serial}_{item.uid}_year"
+        )
+        return [entity_id] if entity_id else []
 
-    def _read_external(self, key: str, state) -> bool:
-        if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-            return False
-        try:
-            value = float(state.state)
-        except ValueError:
-            return False
-        unit = state.attributes.get("unit_of_measurement", "kWh")
-        factor = _ENERGY_TO_KWH.get(unit)
-        if factor is None:
-            _LOGGER.warning("%s has unsupported energy unit %s", state.entity_id, unit)
-            return False
-        integrator = self.sums[key]
-        assert isinstance(integrator, CounterIntegrator)
-        integrator.reading(value * factor, dt_util.utcnow())
-        return True
-
-    @callback
-    def _on_state_change(self, event: Event[EventStateChangedData]) -> None:
-        entity_id = event.data["entity_id"]
-        state = event.data["new_state"]
-        for key, source in self.external.items():
-            if source == entity_id and state is not None:
-                if self._read_external(key, state) and key in ("hp_heat", "hp_electric"):
-                    self._sample_cop()
-                self._store.async_delay_save(self._data, SAVE_DELAY)
+    async def _async_refresh(self, _now: datetime | None = None) -> None:
+        """Read period energies from the long-term statistics."""
+        now = dt_util.utcnow()
+        recorder = get_instance(self.hass)
+        energy: dict[str, dict[str, float | None]] = {}
+        for source in self.energy_sources:
+            entity_ids = self._entity_ids(source)
+            energy[source] = {}
+            for period in PERIODS:
+                total: float | None = None
+                for entity_id in entity_ids:
+                    try:
+                        result = await recorder.async_add_executor_job(
+                            statistic_during_period,
+                            self.hass,
+                            period_start(period, now),
+                            None,
+                            entity_id,
+                            {"change"},
+                            {"energy": "kWh"},
+                        )
+                    except Exception:  # noqa: BLE001 - statistics are best effort
+                        _LOGGER.debug("No statistics for %s", entity_id, exc_info=True)
+                        continue
+                    change = result.get("change")
+                    if change is not None:
+                        total = (total or 0.0) + max(0.0, change)
+                energy[source][period] = total
+        self._energy = energy
         self._notify()
 
+    def _total(self, source: str) -> float | None:
+        """Current meter reading of a source in kWh (sum of its entities)."""
+        total = None
+        for entity_id in self.external.get(source, []):
+            state = self.hass.states.get(entity_id)
+            value = _float_state(state)
+            if value is None:
+                return None
+            factor = _ENERGY_TO_KWH.get(state.attributes.get("unit_of_measurement", "kWh"))
+            if factor is None:
+                return None
+            total = (total or 0.0) + value * factor
+        return total
+
+    def _delta(self, source: str, hours: float) -> float:
+        """Plausible increase of a counter since the last tick (kWh)."""
+        value = self._total(source)
+        if value is None:
+            return 0.0
+        last = self._last_totals.get(source)
+        self._last_totals[source] = value
+        if last is None:
+            return 0.0
+        delta = value - last
+        if delta < 0 or delta > MAX_PLAUSIBLE_KW * hours + 1.0:
+            return 0.0  # reset or glitch: just take the new reading as base
+        return delta
+
     @callback
-    def _on_coordinator(self) -> None:
-        data = self.coordinator.data
-        if not data:
-            return
+    def _on_tick(self) -> None:
+        """Integrate runtime and heat pump factor on every poll."""
         now = dt_util.utcnow()
-        for key, item in self.internal.items():
-            values = data.get(item.address)
-            # Year counter in Wh resets once a year, the integrator handles that.
-            if values and len(values) > 3 and values[3] is not None:
-                integrator = self.sums[key]
-                assert isinstance(integrator, CounterIntegrator)
-                integrator.reading(values[3] / 1000, now)
+        hours = (now - self._last_tick).total_seconds() / 3600 if self._last_tick else 0.0
+        valid = self._last_tick is not None and 0 < hours < 0.2
+        self._last_tick = now
+        data = self.coordinator.data or {}
 
         rod = self.heating_rod
-        if rod is not None and rod.address in data:
+        if valid and rod is not None and rod.address in data:
             power = data[rod.address][0]
-            if self._last_rod_update is not None and power is not None and power > HEATING_ROD_ON_W:
-                seconds = (now - self._last_rod_update).total_seconds()
-                # Ignore gaps (e.g. connection loss) longer than a few polls.
-                if 0 < seconds < 600:
-                    self.sums[HEATING_ROD_RUNTIME].add(seconds, now)
-            self._last_rod_update = now
+            if power is not None and power > HEATING_ROD_ON_W:
+                self._runtime.add({"seconds": hours * 3600}, now)
+
+        if self.has_work_ratio:
+            heat = self._delta("hp_heat", hours)
+            electric = self._delta("hp_electric", hours)
+            lift = self.lift()
+            if valid and (heat > 0 or electric > 0) and lift is not None:
+                values = {"heat": heat, "electric": electric, "heat_lift": heat * lift}
+                target = self.cop_target()
+                if target:
+                    values["expected_electric"] = heat / target
+                self._factor.add(values, now)
+
         self._store.async_delay_save(self._data, SAVE_DELAY)
         self._notify()
-
-    @callback
-    def _on_midnight(self, _now: datetime) -> None:
-        self._notify()
-
-    def _sample_cop(self) -> None:
-        heat = self.sums["hp_heat"].total
-        electric = self.sums["hp_electric"].total
-        now = dt_util.utcnow()
-        self._cop_samples.append(_Sample(now, heat, electric))
-        while len(self._cop_samples) > 2 and now - self._cop_samples[1].time > COP_WINDOW:
-            self._cop_samples.popleft()
 
     def _notify(self) -> None:
         for update in list(self._listeners):
             update()
 
     def _data(self) -> dict[str, Any]:
-        return {key: sums.as_dict() for key, sums in self.sums.items()}
+        return {
+            HEATING_ROD_RUNTIME: self._runtime.as_dict(),
+            HP_FACTOR: self._factor.as_dict(),
+        }

@@ -43,6 +43,22 @@ const I18N = {
     no_controls: "Keine schaltbaren Elemente in den gewählten Bereichen.",
     mode_hint: "Schalten oder Verstellen setzt das Element auf Hand. Mit „Automatik“ übernimmt wieder die Regelung.",
     idle: "Ruht",
+    plant: "Anlage",
+    flow_actual_target: "Vorlauf Ist / Soll",
+    mixer: "Mischer",
+    modulation: "Modulation",
+    temperature: "Temperatur",
+    thermal: "Wärme",
+    electric: "Strom",
+    factor: "Faktor",
+    demand: "Anforderung",
+    lift: "Hub",
+    on: "Ein",
+    off: "Aus",
+    opening: "öffnet",
+    closing: "schließt",
+    holding: "steht",
+    of_target: "v. Soll",
     stats: "Statistik",
     day: "Tag",
     week: "Woche",
@@ -112,6 +128,22 @@ const I18N = {
     no_controls: "No switchable items in the selected areas.",
     mode_hint: "Switching or changing a value puts the item into manual mode. Choose “Automatic” to hand control back.",
     idle: "Idle",
+    plant: "Plant",
+    flow_actual_target: "Flow actual / target",
+    mixer: "Mixer",
+    modulation: "Modulation",
+    temperature: "Temperature",
+    thermal: "Heat",
+    electric: "Power",
+    factor: "Factor",
+    demand: "Demand",
+    lift: "Lift",
+    on: "On",
+    off: "Off",
+    opening: "opening",
+    closing: "closing",
+    holding: "holding",
+    of_target: "of target",
     stats: "Statistics",
     day: "Day",
     week: "Week",
@@ -252,6 +284,64 @@ const STYLE = `
   .pill { border: none; border-radius: 999px; padding: 8px 18px; background: var(--primary-color); color: var(--text-primary-color, #fff);
           font-size: 14px; cursor: pointer; white-space: nowrap; }
   .pill:active { transform: scale(.97); }
+
+  /* ----- plant schema ----- */
+  .plant-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(56px, 14vw, 150px) clamp(96px, 18vw, 170px);
+                grid-auto-rows: minmax(120px, auto); row-gap: 14px; align-items: center; }
+  .unit { grid-column: 1; position: relative; border-radius: 14px; padding: 12px 14px; cursor: pointer;
+          background: var(--secondary-background-color); border: 1px solid transparent; transition: border-color .4s, box-shadow .4s; }
+  .unit.active { border-color: var(--rn-heat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rn-heat) 18%, transparent); }
+  .unit.hp.active { border-color: var(--rn-heatpump); }
+  .uhead { display: flex; align-items: center; gap: 8px; font-weight: 500; margin-bottom: 4px; }
+  .uhead ha-icon { --mdc-icon-size: 22px; color: var(--secondary-text-color); }
+  .unit.active .uhead ha-icon { color: var(--rn-heat); }
+  .unit.hp.active .uhead ha-icon { color: var(--rn-heatpump); animation: rn-spin 3s linear infinite; }
+  .uhead span { flex: 1; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--divider-color, #888); }
+  .unit.active .dot { background: var(--rn-battery); box-shadow: 0 0 8px var(--rn-battery); }
+  .unit .big { font-size: 24px; font-weight: 300; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--secondary-text-color); padding: 2px 0; }
+  .kv b { color: var(--primary-text-color); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .hpgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin: 4px 0 6px; }
+  .hpgrid small { display: block; font-size: 12px; color: var(--secondary-text-color); }
+  .hpgrid b { font-size: 18px; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .valve { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .valve span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 10px; border-radius: 999px;
+                background: var(--card-background-color); color: var(--secondary-text-color); }
+  .valve span ha-icon { --mdc-icon-size: 16px; }
+  .valve span.on { background: var(--rn-heatpump); color: #fff; }
+  .pipe { grid-column: 2; display: flex; flex-direction: column; justify-content: center; gap: 5px; height: 100%; }
+  .pipe small { font-size: 11px; color: var(--secondary-text-color); text-align: center; white-space: nowrap; min-height: 14px; }
+  .pipe .line { height: 7px; border-radius: 4px; background: var(--c, var(--divider-color, #888)); opacity: .35; position: relative; overflow: hidden; }
+  .pipe.active .line { opacity: 1; }
+  .pipe.active .line::after { content: ""; position: absolute; inset: 0 0 0 -22px;
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 8px, transparent 8px 22px);
+      animation: rn-flow 1.2s linear infinite; }
+  /* consumers: supply flows from the tank (right) to the left */
+  .pipe.out.active .flow::after, .pipe.in.active .ret::after { animation-direction: reverse; }
+  .pipe.cable { justify-content: center; }
+  .pipe.cable .line { height: 4px; background: var(--rn-pv); opacity: .3; }
+  .pipe.cable.active .line { opacity: 1; box-shadow: 0 0 8px var(--rn-pv); }
+  .ptank { grid-column: 3; align-self: stretch; border-radius: 80px; border: 3px solid var(--divider-color, #888);
+           display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 48px 8px;
+           background: var(--secondary-background-color); transition: background 1s ease; min-height: 300px; }
+  .tlbl { background: rgba(0,0,0,.55); color: #fff; border-radius: 10px; padding: 5px 10px; text-align: center; cursor: pointer; max-width: 92%; }
+  .tlbl small { display: block; font-size: 11px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tlbl b { font-size: 16px; font-weight: 500; }
+  @keyframes rn-flow { from { transform: translateX(-22px); } to { transform: translateX(0); } }
+  @keyframes rn-spin { to { transform: rotate(360deg); } }
+  @media (max-width: 600px) {
+    .unit { padding: 10px; }
+    .unit .big { font-size: 20px; }
+    .hpgrid b { font-size: 15px; }
+    .pipe small { font-size: 10px; white-space: normal; }
+    .tlbl { padding: 4px 6px; }
+    .tlbl b { font-size: 14px; }
+    .ptank { padding: 36px 4px; border-radius: 60px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pipe.active .line::after, .unit.hp.active .uhead ha-icon { animation: none; }
+  }
   @media (max-width: 700px) {
     main { padding: 12px; }
     .heating { grid-template-columns: 1fr; }
@@ -348,10 +438,35 @@ class RennergyPanel extends HTMLElement {
     return abs >= 1000 ? `${this._fmtNumber(watts / 1000, 1)} kW` : `${this._fmtNumber(watts, 0)} W`;
   }
 
-  _role(role) {
-    // External meters chosen in the settings win over the Rennergy items.
+  // All entities behind a role. External meters chosen in the settings win
+  // over the Rennergy items (PV may consist of several systems).
+  _ids(role) {
     const external = { pv_power: "pv", heat_pump_power: "hp_electric" }[role];
-    return (external && this._system?.power_sensors?.[external]) || this._system?.roles?.[role];
+    const list = external && this._system?.power_sensors?.[external];
+    if (list && list.length) return list;
+    const own = this._system?.roles?.[role];
+    return own ? [own] : [];
+  }
+
+  _role(role) {
+    return this._ids(role)[0];
+  }
+
+  // Sum of power entities in W (handles kW).
+  _sumW(ids) {
+    let total = null;
+    for (const eid of ids || []) {
+      const s = this._state(eid);
+      const n = s ? parseFloat(s.state) : NaN;
+      if (!Number.isFinite(n)) continue;
+      const unit = s.attributes.unit_of_measurement;
+      total = (total ?? 0) + n * (unit === "kW" ? 1000 : unit === "MW" ? 1e6 : 1);
+    }
+    return total;
+  }
+
+  _powerW(role) {
+    return this._sumW(this._ids(role));
   }
 
   _stat(key) {
@@ -419,13 +534,225 @@ class RennergyPanel extends HTMLElement {
   }
 
   _tile(icon, color, label, role, sub = "") {
-    const eid = this._role(role);
-    if (!eid) return "";
-    return `<div class="card tile" data-more="${esc(eid)}">
+    const ids = this._ids(role);
+    if (!ids.length) return "";
+    // Several entities (e.g. PV systems) are shown as their sum.
+    const value =
+      ids.length > 1
+        ? `<div class="big" data-power-role="${esc(role)}">–</div>`
+        : `<div class="big" data-fmt-eid="${esc(ids[0])}">–</div>`;
+    return `<div class="card tile" data-more="${esc(ids[0])}">
       <div class="head"><ha-icon icon="${icon}" style="color:${color}"></ha-icon>${esc(label)}</div>
-      <div class="big" data-power="${esc(eid)}" data-fmt-eid="${esc(eid)}">–</div>
+      ${value}
       ${sub}
     </div>`;
+  }
+
+  // ---------- plant schema ----------
+
+  _schema(field) {
+    return this._system?.schema?.[field];
+  }
+
+  _tankIds() {
+    const configured = this._schema("tank_sensors");
+    if (configured && configured.length) return configured;
+    return ["hot_water_temp", "tank_top", "tank_middle", "tank_bottom"].map((r) => this._role(r)).filter(Boolean);
+  }
+
+  _pv(key, label, cls = "") {
+    return `<div class="kv ${cls}"><span>${esc(label)}</span><b data-pv="${key}">–</b></div>`;
+  }
+
+  _pipe(id, kind) {
+    // kind: "out" = water flows from the tank to a consumer, "in" = a generator
+    // feeds the tank, "cable" = electric heating rod.
+    if (kind === "cable") {
+      return `<div class="pipe cable" data-pa="${id}"><div class="line"></div></div>`;
+    }
+    return `<div class="pipe ${kind}" data-pa="${id}">
+        <small data-pv="${id}_flow_lbl"></small>
+        <div class="line flow" data-pc="${id}_flow"></div>
+        <div class="line ret" data-pc="${id}_ret"></div>
+        <small data-pv="${id}_ret_lbl"></small>
+      </div>`;
+  }
+
+  _plant() {
+    const t = this._t;
+    const r = (role) => !!this._role(role);
+    const s = (field) => !!this._schema(field);
+    const rows = [];
+
+    for (const hk of ["hk1", "hk2"]) {
+      const n = hk.slice(2);
+      if (!r(`${hk}_flow`) && !s(`hc${n}_heat_power`)) continue;
+      rows.push(`
+        <div class="unit" data-pa="${hk}" data-more="${esc(this._role(`${hk}_flow`) || this._schema(`hc${n}_heat_power`))}">
+          <div class="uhead"><ha-icon icon="mdi:radiator"></ha-icon><span>${t[hk]}</span><i class="dot"></i></div>
+          <div class="big" data-pv="${hk}_power">–</div>
+          ${this._pv(`${hk}_vl`, t.flow_actual_target)}
+          ${this._pv(`${hk}_mixer`, t.mixer)}
+        </div>
+        ${this._pipe(hk, "out")}`);
+    }
+
+    if (r("heating_rod_power") || r("heating_rod_percent")) {
+      rows.push(`
+        <div class="unit small" data-pa="rod" data-more="${esc(this._role("heating_rod_power") || this._role("heating_rod_percent"))}">
+          <div class="uhead"><ha-icon icon="mdi:heating-coil"></ha-icon><span>${t.heating_rod}</span><i class="dot"></i></div>
+          <div class="big" data-pv="rod_power">–</div>
+          ${this._pv("rod_percent", t.modulation)}
+        </div>
+        ${this._pipe("rod", "cable")}`);
+    }
+
+    if (r("stove_temp") || s("stove_temp") || s("stove_status")) {
+      rows.push(`
+        <div class="unit" data-pa="stove" data-more="${esc(this._schema("stove_temp") || this._role("stove_temp") || this._schema("stove_status"))}">
+          <div class="uhead"><ha-icon icon="mdi:fireplace"></ha-icon><span>${t.stove}</span><i class="dot"></i></div>
+          <div class="big" data-pv="stove_power">–</div>
+          ${this._pv("stove_temp", t.temperature)}
+        </div>
+        ${this._pipe("stove", "in")}`);
+    }
+
+    const hasHp = (this._system.power_sensors?.hp_electric || []).length || r("heat_pump_demand") || s("hp_flow_temp");
+    if (hasHp) {
+      rows.push(`
+        <div class="unit hp" data-pa="hp" data-more="${esc((this._system.power_sensors?.hp_electric || [])[0] || this._role("heat_pump_demand") || "")}">
+          <div class="uhead"><ha-icon icon="mdi:heat-pump"></ha-icon><span>${t.heat_pump}</span><i class="dot"></i></div>
+          <div class="hpgrid">
+            <div><small>${t.thermal}</small><b data-pv="hp_heat">–</b></div>
+            <div><small>${t.electric}</small><b data-pv="hp_el">–</b></div>
+            <div><small>COP</small><b data-pv="hp_cop">–</b></div>
+            <div><small>${t.factor}</small><b data-pv="hp_factor">–</b></div>
+          </div>
+          ${this._pv("hp_demand", t.demand)}
+          ${this._pv("hp_lift", t.lift)}
+          <div class="valve">
+            <span data-valve="ww"><ha-icon icon="mdi:shower-head"></ha-icon>${t.hot_water}</span>
+            <span data-valve="heat"><ha-icon icon="mdi:radiator"></ha-icon>${t.heating}</span>
+          </div>
+        </div>
+        ${this._pipe("hp", "in")}`);
+    }
+
+    if (!rows.length) return "";
+    const tank = this._tankIds()
+      .map((eid) => {
+        const st = this._hass.states[eid];
+        const name = (st?.attributes.friendly_name || eid).replace(/^Rennergy [^ ]+ /, "");
+        return `<div class="tlbl" data-more="${esc(eid)}"><small>${esc(name)}</small><b data-fmt="${esc(eid)}">–</b></div>`;
+      })
+      .join("");
+
+    return `<div class="card plant">
+        <h2>${t.plant}</h2>
+        <div class="plant-grid" style="--rows:${rows.length}">
+          ${rows.join("")}
+          <div class="ptank" data-ptank style="grid-row: 1 / span ${rows.length}">${tank}</div>
+        </div>
+      </div>`;
+  }
+
+  _tempColor(temp) {
+    if (temp == null) return "var(--divider-color, #888)";
+    const ratio = Math.max(0, Math.min(1, (temp - 20) / 45));
+    return `hsl(${Math.round(220 - ratio * 220)}, 75%, 50%)`;
+  }
+
+  _fmtTemp(value) {
+    return value == null ? "–" : `${this._fmtNumber(value, 1)} °C`;
+  }
+
+  _updatePlant(main) {
+    const plant = main.querySelector(".plant");
+    if (!plant) return;
+    const t = this._t;
+    const num = (eid) => (eid ? this._num(eid) : null);
+    const role = (r) => this._num(this._role(r));
+    const sch = (f) => num(this._schema(f));
+    const V = {};
+    const C = {};
+    const A = {};
+
+    for (const hk of ["hk1", "hk2"]) {
+      const n = hk.slice(2);
+      const power = this._sumW([this._schema(`hc${n}_heat_power`)].filter(Boolean));
+      const pump = role(`${hk}_pump`);
+      const open = role(`${hk}_mixer_open`);
+      const close = role(`${hk}_mixer_close`);
+      const flow = sch(`hc${n}_flow_temp`);
+      const ret = sch(`hc${n}_return_temp`);
+      V[`${hk}_power`] = power != null ? this._fmtPower(power) : pump ? t.on : t.off;
+      V[`${hk}_vl`] = `${this._fmtTemp(role(`${hk}_flow`))} / ${this._fmtTemp(role(`${hk}_target`))}`;
+      V[`${hk}_mixer`] = open > 0 ? `▲ ${t.opening}` : close > 0 ? `▼ ${t.closing}` : t.holding;
+      V[`${hk}_flow_lbl`] = flow != null ? `VL ${this._fmtTemp(flow)}` : "";
+      V[`${hk}_ret_lbl`] = ret != null ? `RL ${this._fmtTemp(ret)}` : "";
+      C[`${hk}_flow`] = this._tempColor(flow ?? role(`${hk}_flow`));
+      C[`${hk}_ret`] = this._tempColor(ret);
+      A[hk] = (pump ?? 0) >= 1 || (power ?? 0) > 50;
+    }
+
+    const rodW = this._powerW("heating_rod_power");
+    V.rod_power = this._fmtPower(rodW ?? 0);
+    const rodPct = role("heating_rod_percent");
+    V.rod_percent = rodPct != null ? `${this._fmtNumber(rodPct, 0)} %` : "–";
+    A.rod = (rodW ?? 0) > 20;
+
+    const stoveW = this._sumW(this._system.power_sensors?.stove_heat);
+    const stoveStatus = this._state(this._schema("stove_status"));
+    const stoveTemp = sch("stove_temp") ?? role("stove_temp");
+    V.stove_power = stoveW != null ? this._fmtPower(stoveW) : stoveStatus ? (stoveStatus.state === "on" ? t.on : t.off) : "–";
+    V.stove_temp = this._fmtTemp(stoveTemp);
+    const sFlow = sch("stove_flow_temp");
+    const sRet = sch("stove_return_temp");
+    V.stove_flow_lbl = sFlow != null ? `VL ${this._fmtTemp(sFlow)}` : "";
+    V.stove_ret_lbl = sRet != null ? `RL ${this._fmtTemp(sRet)}` : "";
+    C.stove_flow = this._tempColor(sFlow ?? stoveTemp);
+    C.stove_ret = this._tempColor(sRet);
+    A.stove = stoveStatus?.state === "on" || (stoveW ?? 0) > 100;
+
+    const hpHeat = this._sumW(this._system.power_sensors?.hp_heat);
+    const hpEl = this._sumW(this._system.power_sensors?.hp_electric);
+    V.hp_heat = hpHeat != null ? this._fmtPower(hpHeat) : "–";
+    V.hp_el = hpEl != null ? this._fmtPower(hpEl) : "–";
+    V.hp_cop = this._fmtStat("cop", 2);
+    V.hp_factor = this._fmtStat("factor_now", 0);
+    const ratio = this._num(this._stat("target_ratio_now"));
+    if (ratio != null) V.hp_factor += ` · ${this._fmtNumber(ratio, 0)} % ${t.of_target}`;
+    const demand = role("heat_pump_demand");
+    V.hp_demand = demand != null ? `${this._fmtNumber(demand, 0)} %` : "–";
+    V.hp_lift = this._fmtStat("lift", 1);
+    const hFlow = sch("hp_flow_temp");
+    const hRet = sch("hp_return_temp");
+    V.hp_flow_lbl = hFlow != null ? `VL ${this._fmtTemp(hFlow)}` : "";
+    V.hp_ret_lbl = hRet != null ? `RL ${this._fmtTemp(hRet)}` : "";
+    C.hp_flow = this._tempColor(hFlow);
+    C.hp_ret = this._tempColor(hRet);
+    A.hp = (hpEl ?? 0) > 300 || (hpHeat ?? 0) > 100;
+    const valve = role("hot_water_valve");
+    plant.querySelectorAll("[data-valve]").forEach((el) => {
+      const ww = el.dataset.valve === "ww";
+      el.classList.toggle("on", valve != null && (ww ? valve > 0 : valve <= 0));
+    });
+
+    plant.querySelectorAll("[data-pv]").forEach((el) => (el.textContent = V[el.dataset.pv] ?? "–"));
+    plant.querySelectorAll("[data-pc]").forEach((el) => el.style.setProperty("--c", C[el.dataset.pc]));
+    plant.querySelectorAll("[data-pa]").forEach((el) => el.classList.toggle("active", !!A[el.dataset.pa]));
+
+    const temps = this._tankIds().map((eid) => this._num(eid)).filter((v) => v != null);
+    const tank = plant.querySelector("[data-ptank]");
+    if (tank && temps.length) {
+      const stops = temps.map((v, i) => `${this._tempColor(v)} ${Math.round((i / Math.max(temps.length - 1, 1)) * 100)}%`);
+      tank.style.background = `linear-gradient(to bottom, ${stops.join(", ")})`;
+    }
+  }
+
+  _fmtStat(key, digits) {
+    const n = this._num(this._stat(key));
+    return n == null ? "–" : this._fmtNumber(n, digits) + (key === "lift" ? " K" : "");
   }
 
   _render_overview() {
@@ -470,6 +797,7 @@ class RennergyPanel extends HTMLElement {
       .join("");
 
     return `
+      ${this._plant()}
       <div class="card">
         <h2>${t.sources} → ${t.consumers}</h2>
         <div class="flow-label"><span>${t.sources}</span><span data-sum="in"></span></div>
@@ -754,6 +1082,8 @@ class RennergyPanel extends HTMLElement {
     this._updateFlow(main);
     this._updateBattery(main);
     this._updateTank(main);
+    this._updatePlant(main);
+    main.querySelectorAll("[data-power-role]").forEach((el) => (el.textContent = this._fmtPower(this._powerW(el.dataset.powerRole))));
     this._updateStats(main);
     this._updateQuickLoad(main);
   }
@@ -830,7 +1160,7 @@ class RennergyPanel extends HTMLElement {
     const barIn = main.querySelector('[data-bar="in"]');
     if (!barIn) return;
     const t = this._t;
-    const p = (role) => Math.max(0, this._num(this._role(role)) ?? 0);
+    const p = (role) => Math.max(0, this._powerW(role) ?? 0);
 
     let gridImport = p("grid_import");
     let gridExport = p("grid_export");

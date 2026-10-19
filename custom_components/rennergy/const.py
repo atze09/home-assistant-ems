@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "rennergy"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 CONF_UNIT_ID = "unit_id"
 CONF_START_ADDRESS = "start_address"
@@ -36,6 +36,25 @@ POWER_METER_OPTIONS = (
     CONF_HP_ELECTRIC_POWER,
     CONF_STOVE_HEAT_POWER,
 )
+# PV may consist of several systems (e.g. roof, fence, garden house).
+MULTI_ENTITY_OPTIONS = (CONF_PV_ENERGY, CONF_PV_POWER)
+
+# Plant schema (options, "Anlagenschema"): section -> fields.
+SCHEMA_SECTIONS: dict[str, tuple[str, ...]] = {
+    "hc1": ("hc1_flow_temp", "hc1_return_temp", "hc1_heat_power"),
+    "hc2": ("hc2_flow_temp", "hc2_return_temp", "hc2_heat_power"),
+    "stove": ("stove_temp", "stove_flow_temp", "stove_return_temp", "stove_status"),
+    "heat_pump": ("hp_flow_temp", "hp_return_temp", "hp_status"),
+    "tank": ("tank_sensors",),
+}
+CONF_TANK_SENSORS = "tank_sensors"
+CONF_HP_FLOW_TEMP = "hp_flow_temp"
+CONF_OUTDOOR_TEMP = "outdoor_temp"
+
+# Heat pump datasheet (options, "Wärmepumpe").
+CONF_DATASHEET = "datasheet"
+CONF_HP_RUNNING_W = "hp_running_w"
+DEFAULT_HP_RUNNING_W = 300
 
 # Hot water quick load (options, "Aktionen").
 CONF_HOT_WATER_ITEM = "hot_water_item"

@@ -10,7 +10,12 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfEnergy,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import PERIODS
@@ -39,6 +44,16 @@ _LABELS = {
         "heat_total": "Wärmeerzeugung gesamt",
         "runtime": "Heizstab Laufzeit",
         "cop": "Wärmepumpe COP aktuell",
+        "lift": "Wärmepumpe Hub aktuell",
+        "lift_avg": "Wärmepumpe Ø Hub",
+        "factor": "Wärmepumpe Faktor",
+        "factor_target": "Wärmepumpe Faktor Soll",
+        "target_ratio": "Wärmepumpe Soll/Ist",
+        "efficiency": "Wärmepumpe Gütegrad aktuell",
+        "factor_now": "Wärmepumpe Faktor aktuell",
+        "factor_target_now": "Wärmepumpe Faktor Soll aktuell",
+        "target_ratio_now": "Wärmepumpe Soll/Ist aktuell",
+        "cop_target": "Wärmepumpe COP Soll aktuell",
         "autarky": "Autarkie",
         "self_consumption": "Eigenverbrauchsquote",
         "day": "heute",
@@ -64,6 +79,16 @@ _LABELS = {
         "heat_total": "Heat generation total",
         "runtime": "Heating rod runtime",
         "cop": "Heat pump COP current",
+        "lift": "Heat pump lift current",
+        "lift_avg": "Heat pump avg. lift",
+        "factor": "Heat pump factor",
+        "factor_target": "Heat pump target factor",
+        "target_ratio": "Heat pump actual vs. target",
+        "efficiency": "Heat pump Carnot efficiency current",
+        "factor_now": "Heat pump factor current",
+        "factor_target_now": "Heat pump target factor current",
+        "target_ratio_now": "Heat pump actual vs. target current",
+        "cop_target": "Heat pump target COP current",
         "autarky": "Self-sufficiency",
         "self_consumption": "Self-consumption rate",
         "day": "today",
@@ -153,16 +178,54 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
             precision=2,
             icon="mdi:heat-pump",
         )
+    def current(key: str, fn: Callable[[], float | None], **kwargs) -> None:
+        result.append(StatDescription(key=key, name=labels[key], value=fn, **kwargs))
+
+    temp_kwargs = {"unit": UnitOfTemperature.KELVIN, "precision": 1}
     if stats.has_cop:
-        result.append(
-            StatDescription(
-                key="cop",
-                name=labels["cop"],
-                value=stats.cop,
-                precision=2,
-                icon="mdi:heat-pump-outline",
-            )
+        current("cop", stats.cop, precision=2, icon="mdi:heat-pump-outline")
+    if stats.has_lift:
+        current("lift", stats.lift, icon="mdi:thermometer-chevron-up", **temp_kwargs)
+    if stats.has_cop and stats.has_lift:
+        current("factor_now", stats.factor, precision=0, icon="mdi:speedometer")
+        current("efficiency", stats.efficiency, unit=PERCENTAGE, precision=0, icon="mdi:gauge")
+    if stats.has_target and stats.has_lift:
+        current("cop_target", stats.cop_target, precision=2, icon="mdi:file-document-outline")
+        current("factor_target_now", stats.factor_target, precision=0, icon="mdi:speedometer-medium")
+        if stats.has_cop:
+            current("target_ratio_now", stats.target_ratio, unit=PERCENTAGE, precision=0, icon="mdi:scale-balance")
+
+    if stats.has_factor:
+        per_period(
+            "lift",
+            lambda p: f"{labels['lift_avg']} {labels[p]}",
+            stats.period_lift,
+            icon="mdi:thermometer-chevron-up",
+            **temp_kwargs,
         )
+        per_period(
+            "factor",
+            lambda p: f"{labels['factor']} {labels[p]}",
+            stats.period_factor,
+            precision=0,
+            icon="mdi:speedometer",
+        )
+        if stats.has_target:
+            per_period(
+                "factor_target",
+                lambda p: f"{labels['factor_target']} {labels[p]}",
+                stats.period_factor_target,
+                precision=0,
+                icon="mdi:speedometer-medium",
+            )
+            per_period(
+                "target_ratio",
+                lambda p: f"{labels['target_ratio']} {labels[p]}",
+                stats.period_target_ratio,
+                unit=PERCENTAGE,
+                precision=0,
+                icon="mdi:scale-balance",
+            )
 
     if stats.heating_rod is not None:
         per_period(

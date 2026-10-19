@@ -30,13 +30,72 @@
     }
   },
   "options": {
+    "error": {
+      "invalid_datasheet": "Keine gültigen Datenblatt-Werte erkannt. Format: A7/W35 = 4,8 (ein Punkt pro Zeile)."
+    },
     "step": {
       "init": {
         "title": "Rennergy EMS Einstellungen",
         "menu_options": {
           "modules": "Bereiche und Abfrageintervall",
           "meters": "Zähler (Wärmemengen, Strom, PV)",
+          "schema": "Anlagenschema (Vorlauf, Rücklauf, Status, Speicher)",
+          "heat_pump": "Wärmepumpe (Datenblatt, Faktor)",
           "actions": "Aktionen (Warmwasser-Schnellladung)"
+        }
+      },
+      "schema": {
+        "title": "Anlagenschema",
+        "description": "Sensoren für das Anlagenschema auf der Übersichtsseite. Vorlauf und Rücklauf kommen meist vom Wärmemengenzähler. Leere Felder werden ausgeblendet.",
+        "sections": {
+          "hc1": {
+            "name": "Heizkreis 1",
+            "data": {
+              "hc1_flow_temp": "Vorlauftemperatur",
+              "hc1_return_temp": "Rücklauftemperatur",
+              "hc1_heat_power": "Wärmeleistung"
+            }
+          },
+          "hc2": {
+            "name": "Heizkreis 2",
+            "data": {
+              "hc2_flow_temp": "Vorlauftemperatur",
+              "hc2_return_temp": "Rücklauftemperatur",
+              "hc2_heat_power": "Wärmeleistung"
+            }
+          },
+          "stove": {
+            "name": "Kamin / Ofen",
+            "data": {
+              "stove_temp": "Temperatur",
+              "stove_flow_temp": "Vorlauftemperatur",
+              "stove_return_temp": "Rücklauftemperatur",
+              "stove_status": "Status (an/aus)"
+            }
+          },
+          "heat_pump": {
+            "name": "Wärmepumpe",
+            "data": {
+              "hp_flow_temp": "Vorlauftemperatur (auch für den Hub)",
+              "hp_return_temp": "Rücklauftemperatur",
+              "hp_status": "Status (an/aus)"
+            }
+          },
+          "tank": {
+            "name": "Speicher",
+            "data": {
+              "tank_sensors": "Temperaturfühler von oben nach unten"
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Wärmepumpe",
+        "description": "Faktor = Arbeitszahl × Hub (Vorlauf − Außentemperatur). Für den Soll-Faktor die COP-Werte aus dem Datenblatt eintragen, ein Punkt pro Zeile, z. B.:\nA-7/W35 = 2,9\nA2/W35 = 3,8\nA7/W35 = 4,8\nA7/W55 = 3,0\nDazwischen wird interpoliert.",
+        "data": {
+          "datasheet": "Datenblatt-Werte (COP)",
+          "outdoor_temp": "Außentemperatur (leer = Rennergy)",
+          "hp_running_w": "WP läuft ab elektrischer Leistung"
         }
       },
       "modules": {
@@ -48,10 +107,10 @@
       },
       "meters": {
         "title": "Zähler",
-        "description": "Wähle Sensoren aus Home Assistant, die in die Statistiken einfließen. Energiezähler müssen fortlaufend zählen (z. B. kWh, MWh, GJ). Leere Felder werden nicht verwendet.",
+        "description": "Wähle Sensoren aus Home Assistant, die in die Statistiken einfließen. Bitte die durchlaufenden Gesamtzähler wählen, keine Tages- oder Monatszähler. Die Werte für Tag, Woche, Monat und Jahr berechnet die Integration aus der Langzeitstatistik. Leere Felder werden nicht verwendet.",
         "data": {
-          "pv_energy": "PV-Erzeugung Energie (z. B. Victron)",
-          "pv_power": "PV-Erzeugung Leistung (z. B. Victron)",
+          "pv_energy": "PV-Erzeugung Energie (mehrere möglich)",
+          "pv_power": "PV-Erzeugung Leistung (mehrere möglich)",
           "heat_pump_heat_energy": "Wärmepumpe Wärmemenge",
           "heat_pump_heat_power": "Wärmepumpe Wärmeleistung",
           "heat_pump_electric_energy": "Wärmepumpe Stromverbrauch",

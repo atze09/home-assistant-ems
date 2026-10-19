@@ -11,7 +11,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, MODULES
+from .const import DOMAIN, MODULES, SCHEMA_SECTIONS
 from .coordinator import RennergyConfigEntry
 from .entity import ROLE_VALUE, entity_specs, module_name, unique_id
 
@@ -100,6 +100,12 @@ def ws_get_config(
                 "stats": stats,
                 "buttons": buttons,
                 "power_sensors": data.stats.power_sensors,
+                "schema": {
+                    field: entry.options[field]
+                    for section in SCHEMA_SECTIONS.values()
+                    for field in section
+                    if entry.options.get(field)
+                },
                 "hot_water_item": data.hot_water_item.name
                 if data.hot_water_item
                 else None,

@@ -30,13 +30,72 @@
     }
   },
   "options": {
+    "error": {
+      "invalid_datasheet": "No valid datasheet values found. Format: A7/W35 = 4.8 (one point per line)."
+    },
     "step": {
       "init": {
         "title": "Rennergy EMS settings",
         "menu_options": {
           "modules": "Areas and update interval",
           "meters": "Meters (heat, electricity, PV)",
+          "schema": "Plant schema (flow, return, status, tank)",
+          "heat_pump": "Heat pump (datasheet, factor)",
           "actions": "Actions (hot water quick load)"
+        }
+      },
+      "schema": {
+        "title": "Plant schema",
+        "description": "Sensors for the plant schema on the overview page. Flow and return usually come from the heat meter. Empty fields are hidden.",
+        "sections": {
+          "hc1": {
+            "name": "Heating circuit 1",
+            "data": {
+              "hc1_flow_temp": "Flow temperature",
+              "hc1_return_temp": "Return temperature",
+              "hc1_heat_power": "Heat power"
+            }
+          },
+          "hc2": {
+            "name": "Heating circuit 2",
+            "data": {
+              "hc2_flow_temp": "Flow temperature",
+              "hc2_return_temp": "Return temperature",
+              "hc2_heat_power": "Heat power"
+            }
+          },
+          "stove": {
+            "name": "Stove",
+            "data": {
+              "stove_temp": "Temperature",
+              "stove_flow_temp": "Flow temperature",
+              "stove_return_temp": "Return temperature",
+              "stove_status": "Status (on/off)"
+            }
+          },
+          "heat_pump": {
+            "name": "Heat pump",
+            "data": {
+              "hp_flow_temp": "Flow temperature (also used for the lift)",
+              "hp_return_temp": "Return temperature",
+              "hp_status": "Status (on/off)"
+            }
+          },
+          "tank": {
+            "name": "Tank",
+            "data": {
+              "tank_sensors": "Temperature sensors from top to bottom"
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Heat pump",
+        "description": "Factor = performance factor × lift (flow − outdoor temperature). For the target factor enter the COP values of the datasheet, one point per line, e.g.:\nA-7/W35 = 2.9\nA2/W35 = 3.8\nA7/W35 = 4.8\nA7/W55 = 3.0\nValues in between are interpolated.",
+        "data": {
+          "datasheet": "Datasheet values (COP)",
+          "outdoor_temp": "Outdoor temperature (empty = Rennergy)",
+          "hp_running_w": "Heat pump runs above electric power"
         }
       },
       "modules": {
@@ -48,10 +107,10 @@
       },
       "meters": {
         "title": "Meters",
-        "description": "Choose Home Assistant sensors used for the statistics. Energy meters must be cumulative counters (e.g. kWh, MWh, GJ). Empty fields are not used.",
+        "description": "Choose Home Assistant sensors used for the statistics. Please select the cumulative total counters, not daily or monthly ones. Day, week, month and year values are calculated from the long-term statistics. Empty fields are not used.",
         "data": {
-          "pv_energy": "PV production energy (e.g. Victron)",
-          "pv_power": "PV production power (e.g. Victron)",
+          "pv_energy": "PV production energy (several possible)",
+          "pv_power": "PV production power (several possible)",
           "heat_pump_heat_energy": "Heat pump heat energy",
           "heat_pump_heat_power": "Heat pump heat power",
           "heat_pump_electric_energy": "Heat pump electricity",

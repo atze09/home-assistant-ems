@@ -94,6 +94,8 @@ ROLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
         ("heat_pump_power", r"^wp bezug"),
         ("heat_pump_percent", r"^wp 0-100"),
         ("heat_pump_switch", r"^wp 0/1"),
+        ("heat_pump_demand", r"^0-10v wp anford in %"),
+        ("stove_temp", r"holzkessel|kamin"),
         ("ecar_power", r"^ecar laden"),
         ("grid_frequency", r"^netzfrequenz"),
         ("outdoor_temp", r"^au(ss|ß)entemperatur$"),

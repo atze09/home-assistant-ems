@@ -123,6 +123,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> 
         hot_water_item=_hot_water_item(entry, all_items),
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await stats.async_after_setup()
     await async_register_panel(hass)
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     return True

@@ -13,6 +13,7 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlow,
 )
+from homeassistant import data_entry_flow
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
@@ -25,12 +26,21 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
 )
 
 from .const import (
+    CONF_DATASHEET,
     CONF_HOT_WATER_DURATION,
     CONF_HOT_WATER_ITEM,
+    CONF_HP_RUNNING_W,
     CONF_MODULES,
+    CONF_OUTDOOR_TEMP,
+    CONF_TANK_SENSORS,
+    DEFAULT_HP_RUNNING_W,
+    MULTI_ENTITY_OPTIONS,
+    SCHEMA_SECTIONS,
     CONF_SCAN_INTERVAL,
     CONF_START_ADDRESS,
     CONF_UNIT_ID,
@@ -44,6 +54,7 @@ from .const import (
     MODULES,
     POWER_METER_OPTIONS,
 )
+from .datasheet import parse_datasheet
 from .discovery import Item, SystemInfo, async_discover, async_read_system_info
 from .modbus import ModbusError, SmartOneClient
 
@@ -183,20 +194,38 @@ class RennergyConfigFlow(ConfigFlow, domain=DOMAIN):
         return RennergyOptionsFlow()
 
 
-def _sensor_selector(device_class: str) -> EntitySelector:
+def _sensor_selector(device_class: str | None = None, multiple: bool = False) -> EntitySelector:
+    config = EntitySelectorConfig(domain="sensor", multiple=multiple)
+    if device_class:
+        config = EntitySelectorConfig(
+            domain="sensor", device_class=device_class, multiple=multiple
+        )
+    return EntitySelector(config)
+
+
+def _status_selector() -> EntitySelector:
     return EntitySelector(
-        EntitySelectorConfig(domain="sensor", device_class=device_class)
+        EntitySelectorConfig(
+            domain=["binary_sensor", "sensor", "switch", "input_boolean"]
+        )
     )
 
 
+def _as_list(value: Any) -> list[str]:
+    if not value:
+        return []
+    return [value] if isinstance(value, str) else list(value)
+
+
 class RennergyOptionsFlow(OptionsFlow):
-    """Options, split into areas, external meters and actions."""
+    """Options, split into areas, meters, plant schema, heat pump and actions."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         return self.async_show_menu(
-            step_id="init", menu_options=["modules", "meters", "actions"]
+            step_id="init",
+            menu_options=["modules", "meters", "schema", "heat_pump", "actions"],
         )
 
     def _save(self, changes: dict[str, Any], cleared: tuple[str, ...] = ()) -> ConfigFlowResult:
@@ -209,6 +238,9 @@ class RennergyOptionsFlow(OptionsFlow):
     @property
     def _runtime(self):
         return getattr(self.config_entry, "runtime_data", None)
+
+    def _suggested(self, key: str) -> dict[str, Any]:
+        return {"suggested_value": self.config_entry.options.get(key)}
 
     async def async_step_modules(
         self, user_input: dict[str, Any] | None = None
@@ -254,14 +286,107 @@ class RennergyOptionsFlow(OptionsFlow):
         options = self.config_entry.options
         schema: dict[Any, Any] = {}
         for key in ENERGY_METER_OPTIONS:
+            multiple = key in MULTI_ENTITY_OPTIONS
+            value = options.get(key)
             schema[
-                vol.Optional(key, description={"suggested_value": options.get(key)})
-            ] = _sensor_selector("energy")
+                vol.Optional(
+                    key,
+                    description={
+                        "suggested_value": _as_list(value) if multiple else value
+                    },
+                )
+            ] = _sensor_selector("energy", multiple)
         for key in POWER_METER_OPTIONS:
+            multiple = key in MULTI_ENTITY_OPTIONS
+            value = options.get(key)
+            # Many heat meters report power without a device class.
             schema[
-                vol.Optional(key, description={"suggested_value": options.get(key)})
-            ] = _sensor_selector("power")
+                vol.Optional(
+                    key,
+                    description={
+                        "suggested_value": _as_list(value) if multiple else value
+                    },
+                )
+            ] = _sensor_selector(None, multiple)
         return self.async_show_form(step_id="meters", data_schema=vol.Schema(schema))
+
+    async def async_step_schema(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        fields = [f for section in SCHEMA_SECTIONS.values() for f in section]
+        if user_input is not None:
+            flat: dict[str, Any] = {}
+            for section in SCHEMA_SECTIONS:
+                flat.update(user_input.get(section) or {})
+            return self._save(
+                {k: v for k, v in flat.items() if k in fields and v},
+                cleared=tuple(fields),
+            )
+
+        schema: dict[Any, Any] = {}
+        for section, section_fields in SCHEMA_SECTIONS.items():
+            inner: dict[Any, Any] = {}
+            for field in section_fields:
+                if field == CONF_TANK_SENSORS:
+                    selector = _sensor_selector(None, multiple=True)
+                elif field.endswith("_status"):
+                    selector = _status_selector()
+                else:
+                    selector = _sensor_selector()
+                inner[vol.Optional(field, description=self._suggested(field))] = selector
+            schema[vol.Optional(section)] = data_entry_flow.section(
+                vol.Schema(inner), {"collapsed": False}
+            )
+        return self.async_show_form(step_id="schema", data_schema=vol.Schema(schema))
+
+    async def async_step_heat_pump(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            text = (user_input.get(CONF_DATASHEET) or "").strip()
+            try:
+                parse_datasheet(text)
+            except ValueError:
+                errors[CONF_DATASHEET] = "invalid_datasheet"
+            else:
+                changes: dict[str, Any] = {
+                    CONF_HP_RUNNING_W: int(user_input[CONF_HP_RUNNING_W])
+                }
+                if text:
+                    changes[CONF_DATASHEET] = text
+                if user_input.get(CONF_OUTDOOR_TEMP):
+                    changes[CONF_OUTDOOR_TEMP] = user_input[CONF_OUTDOOR_TEMP]
+                return self._save(
+                    changes, cleared=(CONF_DATASHEET, CONF_OUTDOOR_TEMP)
+                )
+
+        options = self.config_entry.options
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_DATASHEET, description=self._suggested(CONF_DATASHEET)
+                ): TextSelector(TextSelectorConfig(multiline=True)),
+                vol.Optional(
+                    CONF_OUTDOOR_TEMP, description=self._suggested(CONF_OUTDOOR_TEMP)
+                ): _sensor_selector(),
+                vol.Required(
+                    CONF_HP_RUNNING_W,
+                    default=options.get(CONF_HP_RUNNING_W, DEFAULT_HP_RUNNING_W),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=10,
+                        max=5000,
+                        step=10,
+                        unit_of_measurement="W",
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="heat_pump", data_schema=schema, errors=errors
+        )
 
     async def async_step_actions(
         self, user_input: dict[str, Any] | None = None
