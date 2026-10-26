@@ -4,10 +4,10 @@
   "codeowners": ["@atze09"],
   "config_flow": true,
   "dependencies": ["frontend", "http", "panel_custom", "recorder", "websocket_api"],
-  "documentation": "https://github.com/atze09/home-assistant-rennergy",
+  "documentation": "https://github.com/atze09/home-assistant-ems",
   "integration_type": "hub",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/atze09/home-assistant-rennergy/issues",
+  "issue_tracker": "https://github.com/atze09/home-assistant-ems/issues",
   "requirements": [],
   "version": "0.5.0"
 }

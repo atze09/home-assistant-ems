@@ -111,7 +111,7 @@ Entitäts-IDs oben sind Beispiele.
 ## Installation
 
 ### HACS (benutzerdefiniertes Repository)
-1. HACS → ⋮ → *Benutzerdefinierte Repositories* → `https://github.com/atze09/home-assistant-rennergy`, Typ *Integration*.
+1. HACS → ⋮ → *Benutzerdefinierte Repositories* → `https://github.com/atze09/home-assistant-ems`, Typ *Integration*.
 2. „EMS“ installieren und Home Assistant neu starten.
 
 ### Manuell
@@ -133,7 +133,7 @@ Version 0.5 richtet sich neu ein (neue Kennung `ems`, neue Einstellungen im Pane
 
 ## Updates
 
-Neue Versionen erscheinen als [Release](https://github.com/atze09/home-assistant-rennergy/releases).
+Neue Versionen erscheinen als [Release](https://github.com/atze09/home-assistant-ems/releases).
 HACS zeigt sie als Update an. Nach dem Aktualisieren Home Assistant neu starten.
 
 ## Lizenz
