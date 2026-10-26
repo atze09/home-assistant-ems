@@ -116,6 +116,15 @@ const I18N = {
     next: "Nächster Zeitraum",
     cw: "KW",
     settings: "Einstellungen",
+    operation: "Betrieb Wärmepumpe und Warmwasser",
+    hp_starts: "Wärmepumpe Starts",
+    hp_runtime: "Wärmepumpe Laufzeit",
+    avg_run: "Ø Laufzeit je Start",
+    starts_per_day: "Ø Starts pro Tag",
+    ww_starts: "Warmwasser Ladungen",
+    ww_runtime: "Warmwasser Ladezeit",
+    avg_ww: "Ø Dauer je Ladung",
+    tank_energy: "Puffer",
     rennergy_unreachable: "Die Rennergy ist gerade nicht erreichbar. Das EMS läuft ohne Heizungswerte weiter und versucht es alle 2 Minuten erneut.",
   },
   en: {
@@ -233,6 +242,15 @@ const I18N = {
     next: "Next period",
     cw: "CW",
     settings: "Settings",
+    operation: "Heat pump and hot water operation",
+    hp_starts: "Heat pump starts",
+    hp_runtime: "Heat pump runtime",
+    avg_run: "Avg. runtime per start",
+    starts_per_day: "Avg. starts per day",
+    ww_starts: "Hot water loads",
+    ww_runtime: "Hot water loading time",
+    avg_ww: "Avg. duration per load",
+    tank_energy: "Buffer tank",
     rennergy_unreachable: "The Rennergy is not reachable right now. The EMS keeps running without heating values and retries every 2 minutes.",
   },
 };
@@ -302,6 +320,8 @@ const SETTINGS_I18N = {
     s_loads_hint: "Z. B. Pool, Whirlpool, Sauna. Jeder Verbraucher wird ein eigenes Gerät.",
     load_new: "Verbraucher",
     s_water: "Wasser",
+    s_hot_water: "Warmwasser",
+    tank_energy_hint: "Mit dem Volumen berechnet das EMS die gespeicherte Wärme in kWh über der Mindesttemperatur und den Ladezustand zwischen Mindest- und Höchsttemperatur.",
     s_actions: "Aktionen der Rennergy",
     auto_pick: "automatisch",
     f: {
@@ -325,7 +345,7 @@ const SETTINGS_I18N = {
       heat_pump_electric_power: "Elektrische Leistung",
       hp_flow_temp: "Vorlauf (auch für den Hub)",
       hp_return_temp: "Rücklauf",
-      hp_status: "Status (ein/aus)",
+      hp_status: "Status (ein/aus), zählt Starts und Laufzeit",
       outdoor_temp: "Außentemperatur",
       hp_running_w: "Läuft ab elektrischer Leistung (W)",
       datasheet: "Datenblatt-COP, je Zeile z. B. A2/W35 = 3,8",
@@ -348,6 +368,11 @@ const SETTINGS_I18N = {
       stove_status: "Ofen Status (ein/aus)",
       water_volume: "Wasserzähler (Gesamtzähler)",
       water_flow: "Durchfluss",
+      hot_water_temp: "Warmwasser-Temperatur",
+      hot_water_valve: "Umschaltventil Warmwasser (ein = lädt), zählt die Ladungen",
+      tank_volume: "Volumen Puffer (L)",
+      tank_min_temp: "Leer bei (°C)",
+      tank_max_temp: "Voll bei (°C)",
       hot_water_item: "Element Warmwasser-Schnellladung",
       hot_water_duration: "Dauer Schnellladung (min)",
       rod_boost_item: "Element Heizstab-Boost",
@@ -418,6 +443,8 @@ const SETTINGS_I18N = {
     s_loads_hint: "E.g. pool, whirlpool, sauna. Every consumer becomes a device of its own.",
     load_new: "Consumer",
     s_water: "Water",
+    s_hot_water: "Hot water",
+    tank_energy_hint: "With the volume the EMS calculates the stored heat in kWh above the minimum temperature and the charge between minimum and maximum temperature.",
     s_actions: "Rennergy actions",
     auto_pick: "automatic",
     f: {
@@ -441,7 +468,7 @@ const SETTINGS_I18N = {
       heat_pump_electric_power: "Electric power",
       hp_flow_temp: "Flow (also used for the lift)",
       hp_return_temp: "Return",
-      hp_status: "Status (on/off)",
+      hp_status: "Status (on/off), counts starts and runtime",
       outdoor_temp: "Outdoor temperature",
       hp_running_w: "Runs above electric power (W)",
       datasheet: "Datasheet COP, one per line, e.g. A2/W35 = 3.8",
@@ -464,6 +491,11 @@ const SETTINGS_I18N = {
       stove_status: "Stove status (on/off)",
       water_volume: "Water meter (total counter)",
       water_flow: "Flow",
+      hot_water_temp: "Hot water temperature",
+      hot_water_valve: "Hot water valve (on = loading), counts the loads",
+      tank_volume: "Buffer tank volume (L)",
+      tank_min_temp: "Empty at (°C)",
+      tank_max_temp: "Full at (°C)",
       hot_water_item: "Item for hot water quick load",
       hot_water_duration: "Quick load duration (min)",
       rod_boost_item: "Item for heating rod boost",
@@ -482,6 +514,7 @@ const SETTINGS_SECTIONS = [
   ["heating_rod", [["heating_rod_energy", "energy", "heating_rod_power"], ["heating_rod_power", "power", "heating_rod_power"], ["rod_temp", "temp", "heating_rod_temp"]]],
   ["heat", [["heating_circuit_1_heat_energy", "energy"], ["hc1_heat_power", "power"], ["hc1_flow_temp", "temp", "hk1_flow"], ["hc1_return_temp", "temp"], ["heating_circuit_2_heat_energy", "energy"], ["hc2_heat_power", "power"], ["hc2_flow_temp", "temp", "hk2_flow"], ["hc2_return_temp", "temp"], ["stove_heat_energy", "energy"], ["stove_heat_power", "power"], ["stove_temp", "temp", "stove_temp"], ["stove_flow_temp", "temp"], ["stove_return_temp", "temp"], ["stove_status", "any"]]],
   ["water", [["water_volume", "volume"], ["water_flow", "any"]]],
+  ["hot_water", [["hot_water_temp", "temp", "hot_water_temp"], ["hot_water_valve", "any", "hot_water_valve"]]],
 ];
 // Device lists: [key, id prefix, fields as [field, kind], icon].
 const SETTINGS_LISTS = [
@@ -562,7 +595,9 @@ const STYLE = `
   .row .name { overflow: hidden; text-overflow: ellipsis; }
   .row .val { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--primary-text-color); }
   .heating { display: grid; gap: 16px; grid-template-columns: minmax(260px, 1fr) minmax(220px, 300px); align-items: start; }
-  .tank-wrap { display: flex; justify-content: center; }
+  .tank-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .tank-info { display: flex; gap: 12px; align-items: baseline; font-size: 15px; color: var(--secondary-text-color); }
+  .tank-info b { font-size: 22px; font-weight: 400; color: var(--primary-text-color); }
   .tank { position: relative; width: 220px; height: 420px; border-radius: 110px; border: 3px solid var(--divider-color, #888);
           display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 40px 0; box-sizing: border-box;
           transition: background .8s ease; }
@@ -896,6 +931,8 @@ class RennergyPanel extends HTMLElement {
 
   _ids(role) {
     if (role === "battery_soc" && this._system?.battery_soc) return [this._system.battery_soc];
+    // Hot water sensors chosen in the settings win over the Rennergy ones.
+    if ((role === "hot_water_temp" || role === "hot_water_valve") && this._schema(role)) return [this._schema(role)];
     const external = this._external(role);
     const list = external && (this._system?.power_sensors?.[external] || this._system?.inverted_power?.[external]);
     if (list && list.length) return list;
@@ -1362,7 +1399,7 @@ class RennergyPanel extends HTMLElement {
     const h = this._history?.key === this._historyKey() ? this._history.data : null;
     const live = this._offset === 0;
     const result = {};
-    for (const key of Object.keys(this._system.energy_meters || {})) {
+    for (const key of [...Object.keys(this._system.energy_meters || {}), ...Object.keys(this._counterMeters())]) {
       const own = live ? this._num(this._stat(`${key}_${this._period}`)) : null;
       if (own != null) result[key] = own;
       else if (h?.series[key]) result[key] = h.series[key].reduce((a, v) => a + v, 0);
@@ -1505,12 +1542,53 @@ class RennergyPanel extends HTMLElement {
       action("hot_water_quick_load", "mdi:water-boiler-alert", t.quick_load) +
       action("heating_rod_boost", "mdi:heating-coil", t.rod_boost);
 
-    return `<div class="heating"><div>${actions}${boxes}</div><div class="card tank-wrap">${tank}</div></div>`;
+    const level = this._stat("tank_level");
+    const energy = this._stat("tank_energy");
+    const tankInfo =
+      level || energy
+        ? `<div class="tank-info">${energy ? `<b data-fmt="${esc(energy)}">–</b>` : ""}${level ? `<span data-fmt="${esc(level)}">–</span>` : ""}</div>`
+        : "";
+    return `<div class="heating"><div>${actions}${boxes}</div><div class="card tank-wrap">${tankInfo}${tank}</div></div>`;
   }
 
   _stack(id, label) {
     return `<div class="flow-label"><span>${esc(label)}</span><span data-stack-sum="${id}"></span></div>
       <div class="bar" data-stack="${id}"></div><div class="legend" data-stack-legend="${id}"></div>`;
+  }
+
+  // All time counters of the integration (starts, running time). Their
+  // long-term statistics give the values of any period, like energy meters.
+  _counterMeters() {
+    const result = {};
+    for (const key of ["hp_starts", "hp_runtime", "ww_starts", "ww_runtime"]) {
+      const eid = this._stat(`${key}_total`);
+      if (eid) result[key] = [eid];
+    }
+    return result;
+  }
+
+  _fmtTotal(key, v) {
+    if (key === "water") return `${this._fmtNumber(v, 0)} L`;
+    if (key.endsWith("_starts")) return this._fmtNumber(Math.round(v), 0);
+    if (key.endsWith("_runtime")) return `${this._fmtNumber(v, 1)} h`;
+    return `${this._fmtNumber(v, 1)} kWh`;
+  }
+
+  // Heat pump starts and running time, hot water loads of the period.
+  _operationCard() {
+    const t = this._t;
+    const c = this._counterMeters();
+    const row = (label, key) => `<div class="row"><span class="name">${esc(label)}</span><span class="val" data-derived="${key}">–</span></div>`;
+    const rows = [
+      c.hp_starts ? this._totalRow(t.hp_starts, "hp_starts") : "",
+      c.hp_runtime ? this._totalRow(t.hp_runtime, "hp_runtime") : "",
+      c.hp_starts && c.hp_runtime ? row(t.avg_run, "hp_avg_run") : "",
+      c.hp_starts && this._period !== "day" ? row(t.starts_per_day, "hp_starts_per_day") : "",
+      c.ww_starts ? this._totalRow(t.ww_starts, "ww_starts") : "",
+      c.ww_runtime ? this._totalRow(t.ww_runtime, "ww_runtime") : "",
+      c.ww_starts && c.ww_runtime ? row(t.avg_ww, "ww_avg_run") : "",
+    ].join("");
+    return rows ? `<div class="card"><h2>${t.operation}</h2><div class="rows">${rows}</div></div>` : "";
   }
 
   _totalRow(label, key) {
@@ -1553,6 +1631,7 @@ class RennergyPanel extends HTMLElement {
       has("stove_heat", "heating_rod") && has("hp_heat") ? chart("heat", t.heat_generation) : "",
       (this._system.cars || []).some((c) => meters[c.id]) ? chart("cars", t.cars) : "",
       (this._system.loads || []).some((l) => meters[l.id]) ? chart("loads", t.consumers) : "",
+      Object.keys(this._counterMeters()).length ? chart("operation", t.operation) : "",
       has("water") ? chart("water", t.water) : "",
     ].join("");
 
@@ -1611,6 +1690,7 @@ class RennergyPanel extends HTMLElement {
       <div class="stats-cols">
         ${elecRows ? `<div class="card"><h2>${t.electricity}</h2><div class="rows">${elecRows}</div></div>` : ""}
         ${hpCard}
+        ${this._operationCard()}
         ${pvCard}
         ${rodCard}
       </div>
@@ -1707,6 +1787,7 @@ class RennergyPanel extends HTMLElement {
       sections[4],
       sections[5],
       this._sTank(d),
+      sections[7],
       sections[6],
       this._sActions(d),
     ];
@@ -1814,11 +1895,16 @@ class RennergyPanel extends HTMLElement {
     const ts = this._ts;
     const list = d.tank_sensors || [];
     const rows = list
-      .map((eid, i) => `<div class="stank">${this._sField(`${i + 1}.`, "temp", eid, `data-tank="${i}"`)}
+      .map((eid, i) => `<div class="stank">${this._sField(`${i + 1}.`, "temp", eid, `data-tank-idx="${i}"`)}
           <button class="clr" data-tank-remove="${i}" title="${ts.remove}">×</button></div>`)
       .join("");
+    const num = (key, def, min, max) =>
+      `<div class="sf"><label>${ts.f[key]}</label><input type="number" min="${min}" max="${max}" data-opt-num="${key}" value="${esc(d[key] ?? def)}" placeholder="${esc(def)}"></div>`;
     return `<div class="card"><h2>${ts.s_tank}</h2><p class="hint">${ts.s_tank_hint}</p>${rows}
-      <button class="pill ghost" data-tank-add>+ ${ts.add}</button></div>`;
+      <button class="pill ghost" data-tank-add>+ ${ts.add}</button>
+      <div class="sgrid" style="margin-top:12px">
+        ${num("tank_volume", "", 10, 100000)}${num("tank_min_temp", 25, 0, 90)}${num("tank_max_temp", 65, 10, 100)}
+      </div><p class="hint">${ts.tank_energy_hint}</p></div>`;
   }
 
   _sActions(d) {
@@ -1927,9 +2013,9 @@ class RennergyPanel extends HTMLElement {
         if (el.dataset.field === "icon") el.closest(".sitem")?.querySelector("ha-icon")?.setAttribute("icon", el.value.trim() || "mdi:power-plug");
       })
     );
-    main.querySelectorAll("[data-tank]").forEach((el) =>
+    main.querySelectorAll("[data-tank-idx]").forEach((el) =>
       el.addEventListener("input", () => {
-        d.tank_sensors[Number(el.dataset.tank)] = el.value.trim();
+        d.tank_sensors[Number(el.dataset.tankIdx)] = el.value.trim();
         this._sDirty(main);
         this._sPreview(el.closest(".sf"));
       })
@@ -2227,9 +2313,17 @@ class RennergyPanel extends HTMLElement {
     main.querySelectorAll("[data-period-label]").forEach((el) => (el.textContent = this._periodLabel()));
     main.querySelectorAll("[data-total]").forEach((el) => {
       const v = tot[el.dataset.total];
-      const water = el.dataset.total === "water";
-      el.textContent = v == null ? "–" : `${this._fmtNumber(v, water ? 0 : 1)} ${water ? "L" : "kWh"}`;
+      el.textContent = v == null ? "–" : this._fmtTotal(el.dataset.total, v);
     });
+    const minutes = (hours, count) => (hours != null && count > 0 ? `${this._fmtNumber((hours * 60) / count, 0)} min` : "–");
+    const { start, end } = this._periodRange();
+    const days = Math.max(1, (Math.min(Date.now(), end.getTime()) - start.getTime()) / 86400000);
+    const derived = {
+      hp_avg_run: minutes(tot.hp_runtime, tot.hp_starts),
+      ww_avg_run: minutes(tot.ww_runtime, tot.ww_starts),
+      hp_starts_per_day: tot.hp_starts != null ? this._fmtNumber(tot.hp_starts / days, 1) : "–",
+    };
+    main.querySelectorAll("[data-derived]").forEach((el) => (el.textContent = derived[el.dataset.derived] ?? "–"));
     main.querySelectorAll("[data-kpi]").forEach((el) => (el.textContent = fmt(kpis[el.dataset.kpi], el)));
     main.querySelectorAll("[data-kpi-arc]").forEach((el) => {
       const n = kpis[el.dataset.kpiArc];
@@ -2350,8 +2444,10 @@ class RennergyPanel extends HTMLElement {
     }
     const tank = this._tankIds();
     const heatIn = left.reduce((a, n) => a + Math.max(0, n.w ?? 0), 0);
+    const tankKwh = this._num(this._stat("tank_energy"));
     const hub = node("tank", t.tank, "mdi:storage-tank", COLORS.heat, heatIn, {
-      sub: this._fmtTempOpt(this._num(tank[0])),
+      // Stored heat if the volume is known, else the top temperature (the circle is small).
+      sub: tankKwh != null ? `${this._fmtNumber(tankKwh, 1)} kWh` : this._fmtTempOpt(this._num(tank[0])),
       more: tank[0],
     });
     return { left, hub, right };
@@ -2517,7 +2613,8 @@ class RennergyPanel extends HTMLElement {
 
   async _loadHistory(key) {
     const meters = this._system.energy_meters || {};
-    const ids = [...new Set(Object.values(meters).flat())];
+    const sources = { ...meters, ...this._counterMeters() };
+    const ids = [...new Set(Object.values(sources).flat())];
     const range = this._periodRange();
     let result = {};
     if (ids.length) {
@@ -2547,7 +2644,7 @@ class RennergyPanel extends HTMLElement {
       byEntity[eid] = values;
     }
     const series = {};
-    for (const [source, list] of Object.entries(meters)) {
+    for (const [source, list] of Object.entries(sources)) {
       const values = range.buckets.map(() => 0);
       let found = false;
       for (const eid of list) {
@@ -2614,10 +2711,17 @@ class RennergyPanel extends HTMLElement {
         values: s[l.id],
       })),
       water: [{ label: t.water, color: "#29b6f6", values: s.water }],
+      // Running time of the heat pump and the hot water share, starts as a line.
+      operation: [
+        { label: t.hp_runtime, color: COLORS.heatpump, values: s.hp_runtime, group: 0 },
+        { label: t.ww_runtime, color: COLORS.heat, values: s.ww_runtime, group: 1 },
+        { label: t.hp_starts, color: "var(--primary-text-color)", values: s.hp_starts, line: true },
+      ],
     };
     main.querySelectorAll("[data-chart]").forEach((el) => {
       const series = (sets[el.dataset.chart] || []).filter((x) => x.values);
-      el.innerHTML = this._barChart(series, h.range, el.dataset.chart === "water" ? "L" : "kWh");
+      const unit = { water: "L", operation: "h" }[el.dataset.chart] || "kWh";
+      el.innerHTML = this._barChart(series, h.range, unit);
     });
 
     const pvEl = main.querySelector("[data-pv-systems]");

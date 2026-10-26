@@ -52,6 +52,14 @@ from .const import (
     CONF_HP_HEAT_ENERGY,
     CONF_HP_HEAT_POWER,
     CONF_HP_RUNNING_W,
+    CONF_HP_STATUS,
+    CONF_HOT_WATER_VALVE,
+    CONF_TANK_MAX_TEMP,
+    CONF_TANK_MIN_TEMP,
+    CONF_TANK_SENSORS,
+    CONF_TANK_VOLUME,
+    DEFAULT_TANK_MAX_TEMP,
+    DEFAULT_TANK_MIN_TEMP,
     CONF_OUTDOOR_TEMP,
     CONF_STOVE_HEAT_ENERGY,
     CONF_STOVE_HEAT_POWER,
@@ -94,6 +102,17 @@ BATTERY_CHARGE = "battery_charge"
 BATTERY_DISCHARGE = "battery_discharge"
 WATER = "water"
 HP_FACTOR = "hp_factor"
+OPERATION = "operation"
+# Operating phases that are counted: heat pump running, hot water loading.
+PHASES = ("hp", "ww")
+# A phase only counts as a new start after being off at least this long,
+# so short sensor flickers are no extra start.
+MIN_OFF = timedelta(seconds=60)
+# Heat capacity of water: 1.163 Wh per litre and kelvin.
+WATER_WH_PER_L_K = 1.163
+
+_ON_STATES = {"on", "true", "heat", "heating", "running", "an", "ein", "open"}
+_OFF_STATES = {"off", "false", "idle", "standby", "aus", "closed", "stopped"}
 
 # External energy sources: key -> option. They win over internal sources
 # with the same key. PV systems, cars and consumers come from their lists.
@@ -194,6 +213,55 @@ class PeriodSums:
         return {"periods": self.periods}
 
 
+def _bool_state(state: State | None) -> bool | None:
+    """On/off of a binary sensor, switch or numeric sensor (> 0 = on)."""
+    if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+        return None
+    value = state.state.lower()
+    if value in _ON_STATES:
+        return True
+    if value in _OFF_STATES:
+        return False
+    try:
+        return float(value) > 0
+    except ValueError:
+        return None
+
+
+class RunCounter:
+    """Counts starts and running time of an on/off phase, all time."""
+
+    def __init__(self, data: dict[str, Any] | None = None) -> None:
+        data = data or {}
+        self.starts: int = int(data.get("starts", 0))
+        self.seconds: float = float(data.get("seconds", 0.0))
+        self._on: bool | None = None  # unknown until the first reading
+        self._off_since: datetime | None = None
+
+    def update(self, running: bool, now: datetime, seconds: float) -> tuple[int, float]:
+        """Feed one reading; returns the new starts and running seconds."""
+        new_starts = 0
+        added = 0.0
+        if running:
+            added = seconds if self._on else 0.0
+            # The first reading after a restart is no start.
+            if self._on is False and (
+                self._off_since is None or now - self._off_since >= MIN_OFF
+            ):
+                new_starts = 1
+            self._on = True
+        else:
+            if self._on:
+                self._off_since = now
+            self._on = False
+        self.starts += new_starts
+        self.seconds += added
+        return new_starts, added
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"starts": self.starts, "seconds": self.seconds}
+
+
 def _float_state(state: State | None) -> float | None:
     if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
         return None
@@ -266,11 +334,24 @@ class StatsManager:
         self.flow_sensor: str | None = options.get(CONF_HP_FLOW_TEMP)
         self.outdoor_sensor: str | None = options.get(CONF_OUTDOOR_TEMP)
         self.running_w: float = options.get(CONF_HP_RUNNING_W, DEFAULT_HP_RUNNING_W)
+        self.status_sensor: str | None = options.get(CONF_HP_STATUS)
+        self.ww_valve_sensor: str | None = options.get(CONF_HOT_WATER_VALVE)
+        # Buffer tank: sensors from the settings, else the Rennergy tank values.
+        self.tank_sensors: list[str] = _as_list(options.get(CONF_TANK_SENSORS))
+        self.tank_items: list[Item] = [
+            roles[r] for r in ("tank_top", "tank_middle", "tank_bottom") if r in roles
+        ]
+        self.tank_volume: float | None = options.get(CONF_TANK_VOLUME)
+        self.tank_min: float = options.get(CONF_TANK_MIN_TEMP, DEFAULT_TANK_MIN_TEMP)
+        self.tank_max: float = options.get(CONF_TANK_MAX_TEMP, DEFAULT_TANK_MAX_TEMP)
 
         # Energy per source and period from the long-term statistics (kWh).
         self._energy: dict[str, dict[str, float | None]] = {}
         self._runtime = PeriodSums()
         self._factor = PeriodSums()
+        # Starts and running time per period, plus all time counters.
+        self._operation = PeriodSums()
+        self._counters: dict[str, RunCounter] = {phase: RunCounter() for phase in PHASES}
         self._last_totals: dict[str, float] = {}
         # (time, heat counter, electricity counter) of the heat pump, in kWh.
         self._cop_samples: deque[tuple[datetime, float, float]] = deque()
@@ -284,6 +365,11 @@ class StatsManager:
         stored = await self._store.async_load() or {}
         self._runtime = PeriodSums(stored.get(HEATING_ROD_RUNTIME))
         self._factor = PeriodSums(stored.get(HP_FACTOR))
+        operation = stored.get(OPERATION) or {}
+        self._operation = PeriodSums(operation.get("periods_data"))
+        self._counters = {
+            phase: RunCounter(operation.get("totals", {}).get(phase)) for phase in PHASES
+        }
         self._unsubs.append(
             async_track_time_interval(self.hass, self._on_tick_timer, TICK_INTERVAL)
         )
@@ -419,6 +505,11 @@ class StatsManager:
         return None if flow is None or outdoor is None else flow - outdoor
 
     def hp_running(self) -> bool:
+        # An explicit status (e.g. compressor on) is the most reliable signal.
+        if self.status_sensor:
+            status = _bool_state(self.hass.states.get(self.status_sensor))
+            if status is not None:
+                return status
         electric = self.power("hp_electric")
         if electric is not None:
             return electric > self.running_w
@@ -615,6 +706,9 @@ class StatsManager:
             if power is not None and power > HEATING_ROD_ON_W:
                 self._runtime.add({"seconds": hours * 3600}, now)
 
+        if valid:
+            self._count_operation(now, hours * 3600)
+
         if self.has_work_ratio:
             self._add_cop_sample(now)
             heat = self._delta("hp_heat", hours)
@@ -638,4 +732,86 @@ class StatsManager:
         return {
             HEATING_ROD_RUNTIME: self._runtime.as_dict(),
             HP_FACTOR: self._factor.as_dict(),
+            OPERATION: {
+                "periods_data": self._operation.as_dict(),
+                "totals": {phase: c.as_dict() for phase, c in self._counters.items()},
+            },
         }
+
+    # ---------- operation: starts and running time ----------
+
+    @property
+    def has_hp_signal(self) -> bool:
+        return bool(
+            self.status_sensor
+            or "hp_electric" in self.power_sensors
+            or "hp_heat" in self.power_sensors
+            or self.has_work_ratio
+        )
+
+    @property
+    def has_ww_signal(self) -> bool:
+        return bool(self.ww_valve_sensor or "hot_water_valve" in self.roles)
+
+    def ww_loading(self) -> bool | None:
+        """Hot water valve on: the heat pump loads the hot water tank."""
+        if self.ww_valve_sensor:
+            return _bool_state(self.hass.states.get(self.ww_valve_sensor))
+        item = self.roles.get("hot_water_valve")
+        data = self._rennergy_data()
+        if item is None or item.address not in data or data[item.address][0] is None:
+            return None
+        return data[item.address][0] > 0
+
+    def _count_operation(self, now: datetime, seconds: float) -> None:
+        readings = {
+            "hp": self.hp_running() if self.has_hp_signal else None,
+            "ww": self.ww_loading() if self.has_ww_signal else None,
+        }
+        for phase, running in readings.items():
+            if running is None:
+                continue
+            starts, added = self._counters[phase].update(running, now, seconds)
+            if starts or added:
+                self._operation.add({f"{phase}_starts": starts, f"{phase}_seconds": added}, now)
+
+    def starts(self, phase: str, period: str) -> float:
+        return self._operation.get(period, f"{phase}_starts", dt_util.utcnow())
+
+    def run_hours(self, phase: str, period: str) -> float:
+        return self._operation.get(period, f"{phase}_seconds", dt_util.utcnow()) / 3600
+
+    def total_starts(self, phase: str) -> int:
+        return self._counters[phase].starts
+
+    def total_hours(self, phase: str) -> float:
+        return self._counters[phase].seconds / 3600
+
+    # ---------- buffer tank ----------
+
+    @property
+    def has_tank(self) -> bool:
+        return bool(self.tank_volume and (self.tank_sensors or self.tank_items))
+
+    def tank_mean_temp(self) -> float | None:
+        if self.tank_sensors:
+            temps = [_float_state(self.hass.states.get(e)) for e in self.tank_sensors]
+        else:
+            data = self._rennergy_data()
+            temps = [data.get(i.address, (None,))[0] for i in self.tank_items]
+        temps = [t for t in temps if t is not None]
+        return sum(temps) / len(temps) if temps else None
+
+    def tank_energy(self) -> float | None:
+        """Usable heat above the minimum temperature in kWh."""
+        mean = self.tank_mean_temp()
+        if mean is None or not self.tank_volume:
+            return None
+        return max(0.0, self.tank_volume * WATER_WH_PER_L_K * (mean - self.tank_min) / 1000)
+
+    def tank_level(self) -> float | None:
+        """Charge of the tank between minimum and maximum temperature in %."""
+        mean = self.tank_mean_temp()
+        if mean is None or self.tank_max <= self.tank_min:
+            return None
+        return max(0.0, min(100.0, (mean - self.tank_min) / (self.tank_max - self.tank_min) * 100))

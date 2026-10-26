@@ -51,6 +51,14 @@ _LABELS = {
         "energy": "Energie",
         "heat_total": "Wärmeerzeugung gesamt",
         "runtime": "Heizstab Laufzeit",
+        "hp_starts": "Wärmepumpe Starts",
+        "hp_runtime": "Wärmepumpe Laufzeit",
+        "ww_starts": "Warmwasser Ladungen",
+        "ww_runtime": "Warmwasser Ladezeit",
+        "total": "gesamt",
+        "tank_energy": "Puffer Energie",
+        "tank_level": "Puffer Ladezustand",
+        "tank_mean": "Puffer Mitteltemperatur",
         "cop": "Wärmepumpe COP aktuell",
         "lift": "Wärmepumpe Hub aktuell",
         "lift_avg": "Wärmepumpe Ø Hub",
@@ -91,6 +99,14 @@ _LABELS = {
         "energy": "Energy",
         "heat_total": "Heat generation total",
         "runtime": "Heating rod runtime",
+        "hp_starts": "Heat pump starts",
+        "hp_runtime": "Heat pump runtime",
+        "ww_starts": "Hot water loads",
+        "ww_runtime": "Hot water loading time",
+        "total": "total",
+        "tank_energy": "Buffer tank energy",
+        "tank_level": "Buffer tank charge",
+        "tank_mean": "Buffer tank mean temperature",
         "cop": "Heat pump COP current",
         "lift": "Heat pump lift current",
         "lift_avg": "Heat pump avg. lift",
@@ -207,8 +223,10 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
             precision=2,
             icon="mdi:heat-pump",
         )
-    def current(key: str, fn: Callable[[], float | None], **kwargs) -> None:
-        result.append(StatDescription(key=key, name=labels[key], value=fn, **kwargs))
+    def current(
+        key: str, fn: Callable[[], float | None], name: str | None = None, **kwargs
+    ) -> None:
+        result.append(StatDescription(key=key, name=name or labels[key], value=fn, **kwargs))
 
     temp_kwargs = {"unit": UnitOfTemperature.KELVIN, "precision": 1}
     if stats.has_cop:
@@ -255,6 +273,54 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
                 precision=0,
                 icon="mdi:scale-balance",
             )
+
+    # Starts and running time: per period, plus all time counters whose
+    # long-term statistics give any past period.
+    for phase, has_signal in (("hp", stats.has_hp_signal), ("ww", stats.has_ww_signal)):
+        if not has_signal:
+            continue
+        per_period(
+            f"{phase}_starts",
+            lambda p, k=phase: f"{labels[f'{k}_starts']} {labels[p]}",
+            lambda p, k=phase: stats.starts(k, p),
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            precision=0,
+            icon="mdi:counter",
+        )
+        per_period(
+            f"{phase}_runtime",
+            lambda p, k=phase: f"{labels[f'{k}_runtime']} {labels[p]}",
+            lambda p, k=phase: stats.run_hours(k, p),
+            unit=UnitOfTime.HOURS,
+            device_class=SensorDeviceClass.DURATION,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            precision=1,
+        )
+        current(
+            f"{phase}_starts_total",
+            lambda k=phase: stats.total_starts(k),
+            name=f"{labels[f'{phase}_starts']} {labels['total']}",
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            precision=0,
+            icon="mdi:counter",
+        )
+        current(
+            f"{phase}_runtime_total",
+            lambda k=phase: stats.total_hours(k),
+            name=f"{labels[f'{phase}_runtime']} {labels['total']}",
+            unit=UnitOfTime.HOURS,
+            device_class=SensorDeviceClass.DURATION,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            precision=1,
+        )
+
+    if stats.tank_sensors or stats.tank_items:
+        current("tank_mean", stats.tank_mean_temp, unit=UnitOfTemperature.CELSIUS,
+                device_class=SensorDeviceClass.TEMPERATURE, precision=1)
+        current("tank_level", stats.tank_level, unit=PERCENTAGE, precision=0, icon="mdi:storage-tank")
+        if stats.has_tank:
+            current("tank_energy", stats.tank_energy, unit=UnitOfEnergy.KILO_WATT_HOUR,
+                    device_class=SensorDeviceClass.ENERGY_STORAGE, precision=1)
 
     if stats.has_rod:
         per_period(

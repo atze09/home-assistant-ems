@@ -28,9 +28,6 @@ Umgesetzt:
   E-Autos), PV-Anlagen einzeln
 
 Noch offen:
-- Puffer-Energie in kWh (Volumen als Option)
-- Wärmepumpen-Takte und Laufzeit pro Tag
-- Warmwasser-Ladezeit und -Häufigkeit
 - Batteriezyklen (Kapazität als Option)
 - Ersparnis € (Tarif und Einspeisevergütung als Option oder Sensor)
 - Statistik: Puffertemperaturen als Linie
@@ -44,9 +41,9 @@ Noch offen:
 | Autarkiegrad | 1 − Netzbezug / Gesamtverbrauch | umgesetzt |
 | Eigenverbrauchsquote | 1 − Einspeisung / PV-Erzeugung | umgesetzt |
 | PV-Anteil Heizung | Heizstab-Energie aus Überschuss / Heizstab gesamt | offen |
-| Speicherenergie Puffer | m · c · (T_mittel − T_Rücklauf) in kWh | offen |
-| Warmwasser-Ladezeit und -Häufigkeit | Zeit mit aktivem WW-Ventil | offen |
-| Wärmepumpen-Takte, Laufzeit | Starts/h, Laufzeit/Tag | offen |
+| Speicherenergie Puffer | V · 1,163 Wh/(L·K) · (T_mittel − T_leer) | umgesetzt |
+| Warmwasser-Ladezeit und -Häufigkeit | Zeit mit aktivem WW-Ventil | umgesetzt |
+| Wärmepumpen-Takte, Laufzeit | Starts, Laufzeit, Ø je Start | umgesetzt |
 | Batteriezyklen | Σ Entladung / Kapazität | offen |
 | Ersparnis € | eingesparter Netzbezug × Tarif − entgangene Einspeisevergütung | offen |
 
@@ -55,6 +52,10 @@ Noch offen:
 - Einstellungen-Tab im Panel mit Live-Vorschau, Warnungen und Prüfung des Vorzeichens
 - Beliebig viele PV-Anlagen, E-Autos und Verbraucher; je Auto und Verbraucher ein Gerät
 - Energiefluss ganz oben in der Übersicht
+
+## v0.6: Betrieb und Speicher (umgesetzt)
+- Wärmepumpe Starts und Laufzeit, Warmwasser Ladungen und Ladezeit (je Zeitraum und gesamt)
+- Puffer Energie in kWh, Ladezustand und Mitteltemperatur
 
 ## Stufe 3: Automatisierte Steuerung (Gerüst)
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "ems"
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 # Rennergy smart1 controller (optional source), stored as options["rennergy"].
 CONF_RENNERGY = "rennergy"
@@ -37,6 +37,16 @@ CONF_WATER_FLOW = "water_flow"
 CONF_TANK_SENSORS = "tank_sensors"
 CONF_HP_FLOW_TEMP = "hp_flow_temp"
 CONF_OUTDOOR_TEMP = "outdoor_temp"
+# Running signal of the heat pump (on/off), also used to count its starts.
+CONF_HP_STATUS = "hp_status"
+# Hot water valve (on = the heat pump loads the hot water tank).
+CONF_HOT_WATER_VALVE = "hot_water_valve"
+# Buffer tank: volume in litres and the temperatures for "empty" and "full".
+CONF_TANK_VOLUME = "tank_volume"
+CONF_TANK_MIN_TEMP = "tank_min_temp"
+CONF_TANK_MAX_TEMP = "tank_max_temp"
+DEFAULT_TANK_MIN_TEMP = 25
+DEFAULT_TANK_MAX_TEMP = 65
 
 # Plant schema fields (temperatures, status) per section.
 SCHEMA_SECTIONS: dict[str, tuple[str, ...]] = {
@@ -45,6 +55,7 @@ SCHEMA_SECTIONS: dict[str, tuple[str, ...]] = {
     "stove": ("stove_temp", "stove_flow_temp", "stove_return_temp", "stove_status"),
     "heat_pump": ("hp_flow_temp", "hp_return_temp", "hp_status"),
     "tank": ("tank_sensors", "rod_temp"),
+    "hot_water": ("hot_water_temp", "hot_water_valve"),
 }
 
 # Every option that holds one entity id (tank_sensors holds a list).

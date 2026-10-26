@@ -15,6 +15,7 @@ liefert Puffer, Heizkreise, Heizstab und Warmwasser und ermöglicht das Steuern.
   (Autos auch die Reichweite), die Wärmepumpe den COP, Pool und Whirlpool ihre Temperatur.
   Darunter Tachos für Autarkie, Eigenverbrauch, Arbeitszahl und Arbeitszahl inkl. Heizstab
   (im laufenden Zeitraum mit dem Wert von jetzt), Energie des Zeitraums, Anlagenschema,
+  im thermischen Energiefluss die gespeicherte Wärme des Puffers,
   E-Autos und Live-Werte.
 - **Statistik:** dieselben Tachos, Verlauf als Balkendiagramm (Strom mit PV-Anlagen einzeln,
   Wärmepumpe mit Heizstab und Arbeitszahl je Tag, Wärmeerzeugung, E-Autos, Verbraucher,
@@ -35,7 +36,10 @@ Alle Zuordnungen passieren im Panel unter **EMS → Einstellungen**:
   wie der aktuelle Wert verstanden wird, z. B. „jetzt −850 W → wird als Einspeisung gezeigt“.
 - **E-Autos:** beliebig viele, mit Ladezustand, Ladeleistung, geladener Energie, Reichweite.
 - **Verbraucher:** z. B. Pool, Whirlpool, Sauna, mit Leistung, Energie, Temperatur und Symbol.
-- **Wärmepumpe:** Wärmemenge, Strom, Leistungen, Vor-/Rücklauf, Außentemperatur, Datenblatt.
+- **Wärmepumpe:** Wärmemenge, Strom, Leistungen, Vor-/Rücklauf, Status (ein/aus),
+  Außentemperatur, Datenblatt.
+- **Speicher:** Temperaturfühler von oben nach unten, Volumen sowie „leer bei“ und „voll bei“.
+- **Warmwasser:** Temperatur und Umschaltventil (ein = Wärmepumpe lädt Warmwasser).
 - **Heizstab, Heizkreise und Ofen, Speicher, Wasser** sowie die **Aktionen** der Rennergy.
 
 Jedes Feld zeigt live den aktuellen Wert und warnt bei Auffälligkeiten, z. B. falsche Einheit
@@ -53,6 +57,22 @@ Für **heute, diese Woche, diesen Monat und dieses Jahr** legt das EMS Sensoren 
 - **Tages-, Wochen-, Monats- und Jahresarbeitszahl** der Wärmepumpe
 - **Heizstab:** Energie, Laufzeit und durchschnittliche Leistung
 - **Autarkie** und **Eigenverbrauchsquote**, **Wasserverbrauch** in Litern
+- **Wärmepumpe Starts und Laufzeit**, **Warmwasser Ladungen und Ladezeit**, dazu Zähler
+  „gesamt“, über deren Langzeitstatistik auch vergangene Zeiträume stimmen
+
+Laufend gibt es außerdem **Puffer Energie** (gespeicherte Wärme in kWh über „leer bei“),
+**Puffer Ladezustand** in % und die **Puffer Mitteltemperatur**.
+
+### Wärmepumpe: Starts und Laufzeit
+
+Die Wärmepumpe läuft, wenn der **Status** (falls gewählt) ein ist, sonst wenn die elektrische
+Leistung über der eingestellten Schwelle liegt, sonst wenn Wärme fließt oder der Stromzähler
+weiterläuft. Ein neuer Start zählt erst nach mindestens einer Minute Pause, kurzes Flackern
+eines Sensors ist also kein Takt. Warmwasser-Ladungen zählen genauso über das Umschaltventil.
+
+In der Statistik zeigt die Karte **Betrieb** je Zeitraum Starts, Laufzeit, Ø Laufzeit je Start,
+Ø Starts pro Tag sowie Warmwasser-Ladungen und -Ladezeit. Die Grafik dazu zeigt die Laufzeit
+je Tag bzw. Stunde und die Starts als Linie. Viele kurze Starts deuten auf Takten hin.
 
 Die Energiewerte stammen aus der **Langzeitstatistik von Home Assistant** und stimmen sofort,
 auch rückwirkend.
