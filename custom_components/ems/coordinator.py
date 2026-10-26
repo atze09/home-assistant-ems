@@ -43,6 +43,7 @@ class RennergyData:
     stats: StatsManager
     actions: ActionManager
     hot_water_item: Item | None = None
+    rod_boost_item: Item | None = None
 
 
 class RennergyCoordinator(DataUpdateCoordinator[dict[int, ItemValues]]):

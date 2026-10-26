@@ -1,0 +1,374 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EMS",
+        "description": "Enter the IP address of your Rennergy EMS. Modbus TCP must be enabled on the controller.",
+        "data": {
+          "host": "IP address / host",
+          "port": "Port",
+          "unit_id": "Modbus unit ID",
+          "start_address": "First register of the item map"
+        }
+      },
+      "modules": {
+        "title": "Select areas",
+        "description": "Found controller {serial} (firmware {version}) with {count} values. Choose which areas should be added to Home Assistant. You can change this later.",
+        "data": {
+          "modules": "Areas",
+          "scan_interval": "Update interval"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect. Check IP address, port and that Modbus TCP is enabled.",
+      "no_items": "Connected, but no values were found. Use \"Auto Address\" in the Modbus configuration of the controller.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This controller is already configured."
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_datasheet": "No valid datasheet values found. Format: A7/W35 = 4.8 (one point per line)."
+    },
+    "step": {
+      "init": {
+        "title": "EMS settings",
+        "menu_options": {
+          "modules": "Areas and update interval",
+          "meters": "Meters (PV, grid, battery, house, heating rod, heat pump, heat, water)",
+          "cars": "Electric cars (SoC, charging power)",
+          "loads": "Consumers (pool, whirlpool, …)",
+          "schema": "Plant schema (flow, return, status, tank)",
+          "heat_pump": "Heat pump (datasheet, factor)",
+          "actions": "Actions (hot water quick load, heating rod boost)"
+        }
+      },
+      "schema": {
+        "title": "Plant schema",
+        "description": "Sensors for the plant schema on the overview page. Flow and return usually come from the heat meter. Empty fields are hidden.",
+        "sections": {
+          "hc1": {
+            "name": "Heating circuit 1",
+            "data": {
+              "hc1_flow_temp": "Flow temperature",
+              "hc1_return_temp": "Return temperature",
+              "hc1_heat_power": "Heat power"
+            }
+          },
+          "hc2": {
+            "name": "Heating circuit 2",
+            "data": {
+              "hc2_flow_temp": "Flow temperature",
+              "hc2_return_temp": "Return temperature",
+              "hc2_heat_power": "Heat power"
+            }
+          },
+          "stove": {
+            "name": "Stove",
+            "data": {
+              "stove_temp": "Temperature",
+              "stove_flow_temp": "Flow temperature",
+              "stove_return_temp": "Return temperature",
+              "stove_status": "Status (on/off)"
+            }
+          },
+          "heat_pump": {
+            "name": "Heat pump",
+            "data": {
+              "hp_flow_temp": "Flow temperature (also used for the lift)",
+              "hp_return_temp": "Return temperature",
+              "hp_status": "Status (on/off)"
+            }
+          },
+          "tank": {
+            "name": "Tank",
+            "data": {
+              "tank_sensors": "Temperature sensors from top to bottom",
+              "rod_temp": "Heating rod temperature (top of the tank)"
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Heat pump",
+        "description": "Factor = performance factor × lift (flow − outdoor temperature). For the target factor enter the COP values of the datasheet, one point per line, e.g.:\nA-7/W35 = 2.9\nA2/W35 = 3.8\nA7/W35 = 4.8\nA7/W55 = 3.0\nValues in between are interpolated.",
+        "data": {
+          "datasheet": "Datasheet values (COP)",
+          "outdoor_temp": "Outdoor temperature (empty = Rennergy)",
+          "hp_running_w": "Heat pump runs above electric power"
+        }
+      },
+      "modules": {
+        "title": "Areas",
+        "data": {
+          "modules": "Areas",
+          "scan_interval": "Update interval"
+        }
+      },
+      "meters": {
+        "title": "Meters",
+        "description": "Choose Home Assistant sensors for the statistics and the energy flow. For energy please select the cumulative total counters, not daily or monthly ones. Grid, battery and house replace the Rennergy values when set. Empty fields are not used.",
+        "sections": {
+          "pv": {
+            "name": "PV",
+            "data": {
+              "pv_energy": "Energy (one per PV system, several possible)",
+              "pv_power": "Power (one per PV system, several possible)"
+            }
+          },
+          "grid": {
+            "name": "Grid",
+            "data": {
+              "grid_import_energy": "Import energy",
+              "grid_export_energy": "Export energy",
+              "grid_power": "Power (+ import, − export)"
+            }
+          },
+          "battery": {
+            "name": "Battery",
+            "data": {
+              "battery_charge_energy": "Charged energy",
+              "battery_discharge_energy": "Discharged energy",
+              "battery_power": "Power (+ charging, − discharging)",
+              "battery_soc": "State of charge (SoC)"
+            }
+          },
+          "house": {
+            "name": "House",
+            "data": {
+              "consumption_energy": "Total consumption energy",
+              "house_power": "House power"
+            }
+          },
+          "heating_rod": {
+            "name": "Heating rod",
+            "data": {
+              "heating_rod_energy": "Energy",
+              "heating_rod_power": "Power"
+            }
+          },
+          "heat_pump": {
+            "name": "Heat pump",
+            "data": {
+              "heat_pump_heat_energy": "Heat energy",
+              "heat_pump_heat_power": "Heat power",
+              "heat_pump_electric_energy": "Electricity",
+              "heat_pump_electric_power": "Electric power"
+            }
+          },
+          "heat": {
+            "name": "Heat distribution and stove",
+            "data": {
+              "heating_circuit_1_heat_energy": "Heating circuit 1 heat energy",
+              "heating_circuit_2_heat_energy": "Heating circuit 2 heat energy",
+              "stove_heat_energy": "Stove (water jacket) heat energy",
+              "stove_heat_power": "Stove (water jacket) heat power"
+            }
+          },
+          "water": {
+            "name": "Water",
+            "data": {
+              "water_volume": "Water meter (total counter)",
+              "water_flow": "Current flow"
+            }
+          }
+        }
+      },
+      "actions": {
+        "title": "Actions",
+        "description": "The buttons switch the selected item to manual for the given duration and back to automatic afterwards.\n\nHot water quick load: switches the item on. Without a selection the item with \"Schnelladung\" in its name is used.\n\nHeating rod boost: sets the item to the given power. Without a selection the item \"Heizstab 0-100\" is used.",
+        "data": {
+          "hot_water_item": "Item for hot water quick load",
+          "hot_water_duration": "Quick load duration",
+          "rod_boost_item": "Item for heating rod boost",
+          "rod_boost_duration": "Boost duration",
+          "rod_boost_percent": "Boost power"
+        }
+      },
+      "cars": {
+        "title": "Electric cars",
+        "description": "Up to three cars, e.g. from EVCC or the car's integration. They appear in the energy flow and the statistics. Empty cars are hidden.",
+        "sections": {
+          "car1": {
+            "name": "Car 1",
+            "data": {
+              "car1_name": "Name",
+              "car1_soc": "State of charge (SoC)",
+              "car1_power": "Charging power",
+              "car1_energy": "Charged energy (total counter)",
+              "car1_range": "Range"
+            }
+          },
+          "car2": {
+            "name": "Car 2",
+            "data": {
+              "car2_name": "Name",
+              "car2_soc": "State of charge (SoC)",
+              "car2_power": "Charging power",
+              "car2_energy": "Charged energy (total counter)",
+              "car2_range": "Range"
+            }
+          },
+          "car3": {
+            "name": "Car 3",
+            "data": {
+              "car3_name": "Name",
+              "car3_soc": "State of charge (SoC)",
+              "car3_power": "Charging power",
+              "car3_energy": "Charged energy (total counter)",
+              "car3_range": "Range"
+            }
+          }
+        }
+      },
+      "loads": {
+        "title": "Further consumers",
+        "description": "Up to six electric consumers, e.g. pool, whirlpool or sauna. They appear in the electric energy flow and the statistics. Empty consumers are hidden.",
+        "sections": {
+          "load1": {
+            "name": "Consumer 1",
+            "data": {
+              "load1_name": "Name",
+              "load1_power": "Power",
+              "load1_energy": "Energy (total counter)",
+              "load1_temp": "Temperature (e.g. water temperature)",
+              "load1_icon": "Icon"
+            }
+          },
+          "load2": {
+            "name": "Consumer 2",
+            "data": {
+              "load2_name": "Name",
+              "load2_power": "Power",
+              "load2_energy": "Energy (total counter)",
+              "load2_temp": "Temperature (e.g. water temperature)",
+              "load2_icon": "Icon"
+            }
+          },
+          "load3": {
+            "name": "Consumer 3",
+            "data": {
+              "load3_name": "Name",
+              "load3_power": "Power",
+              "load3_energy": "Energy (total counter)",
+              "load3_temp": "Temperature (e.g. water temperature)",
+              "load3_icon": "Icon"
+            }
+          },
+          "load4": {
+            "name": "Consumer 4",
+            "data": {
+              "load4_name": "Name",
+              "load4_power": "Power",
+              "load4_energy": "Energy (total counter)",
+              "load4_temp": "Temperature (e.g. water temperature)",
+              "load4_icon": "Icon"
+            }
+          },
+          "load5": {
+            "name": "Consumer 5",
+            "data": {
+              "load5_name": "Name",
+              "load5_power": "Power",
+              "load5_energy": "Energy (total counter)",
+              "load5_temp": "Temperature (e.g. water temperature)",
+              "load5_icon": "Icon"
+            }
+          },
+          "load6": {
+            "name": "Consumer 6",
+            "data": {
+              "load6_name": "Name",
+              "load6_power": "Power",
+              "load6_energy": "Energy (total counter)",
+              "load6_temp": "Temperature (e.g. water temperature)",
+              "load6_icon": "Icon"
+            }
+          }
+        }
+      }
+    }
+  },
+  "selector": {
+    "modules": {
+      "options": {
+        "energy": "Energy (PV, grid, consumption)",
+        "battery": "Battery",
+        "heat_pump": "Heat pump",
+        "heating_rod": "Heating rod",
+        "buffer": "Buffer tank",
+        "hot_water": "Hot water",
+        "heating_circuits": "Heating circuits",
+        "boiler": "Boiler (wood / oil)",
+        "ecar": "Electric car / wallbox",
+        "system": "System and internal values"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "hot_water_quick_load": {
+        "name": "Hot water quick load"
+      },
+      "all_automatic": {
+        "name": "Everything to automatic"
+      },
+      "heating_rod_boost": {
+        "name": "Heating rod boost"
+      }
+    },
+    "sensor": {
+      "today": {
+        "name": "{name} today"
+      },
+      "last_30_days": {
+        "name": "{name} last 30 days"
+      },
+      "year": {
+        "name": "{name} this year"
+      }
+    },
+    "select": {
+      "mode": {
+        "name": "{name} mode",
+        "state": {
+          "auto": "Automatic",
+          "manual": "Manual"
+        }
+      }
+    }
+  },
+  "services": {
+    "set_manual": {
+      "name": "Set to manual",
+      "description": "Switches EMS items to manual mode and sets a value. With a duration the item returns to automatic afterwards (survives restarts).",
+      "fields": {
+        "entity_id": {
+          "name": "Entities",
+          "description": "EMS switches, sliders or mode selects."
+        },
+        "value": {
+          "name": "Value",
+          "description": "New value, e.g. 0-100 %. Switches: above 0 = on. Optional for switches (default on)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "After this many minutes the item returns to automatic. Empty = stays manual."
+        }
+      }
+    },
+    "set_auto": {
+      "name": "Set to automatic",
+      "description": "Hands EMS items back to the controller's automatic and stops a running timer.",
+      "fields": {
+        "entity_id": {
+          "name": "Entities",
+          "description": "EMS switches, sliders or mode selects."
+        }
+      }
+    }
+  }
+}

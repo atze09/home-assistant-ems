@@ -11,9 +11,38 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, MODULES, SCHEMA_SECTIONS
-from .coordinator import RennergyConfigEntry
+from .const import (
+    CAR_FIELDS,
+    CARS,
+    CONF_BATTERY_SOC,
+    CONF_WATER_FLOW,
+    DOMAIN,
+    LOAD_FIELDS,
+    LOADS,
+    MODULES,
+    SCHEMA_SECTIONS,
+)
+from .coordinator import RennergyConfigEntry, RennergyData
 from .entity import ROLE_VALUE, entity_specs, module_name, unique_id
+
+
+def _devices(
+    entry: RennergyConfigEntry,
+    data: RennergyData,
+    devices: tuple[str, ...],
+    fields: tuple[str, ...],
+) -> list[dict[str, str]]:
+    """Configured cars or consumers with their sensors; empty ones are skipped."""
+    result = []
+    for device in devices:
+        values = {
+            field: entry.options[f"{device}_{field}"]
+            for field in fields
+            if field != "name" and entry.options.get(f"{device}_{field}")
+        }
+        if any(k != "icon" for k in values):
+            result.append({"id": device, "name": data.stats.names[device], **values})
+    return result
 
 
 @callback
@@ -100,6 +129,16 @@ def ws_get_config(
                 "stats": stats,
                 "buttons": buttons,
                 "power_sensors": data.stats.power_sensors,
+                # Counters per statistics source, for the charts of the panel.
+                "energy_meters": {
+                    source: ids
+                    for source in data.stats.energy_sources
+                    if (ids := data.stats.entity_ids(source))
+                },
+                "battery_soc": entry.options.get(CONF_BATTERY_SOC),
+                "water_flow": entry.options.get(CONF_WATER_FLOW),
+                "cars": _devices(entry, data, CARS, CAR_FIELDS),
+                "loads": _devices(entry, data, LOADS, LOAD_FIELDS),
                 "schema": {
                     field: entry.options[field]
                     for section in SCHEMA_SECTIONS.values()
@@ -108,6 +147,9 @@ def ws_get_config(
                 },
                 "hot_water_item": data.hot_water_item.name
                 if data.hot_water_item
+                else None,
+                "rod_boost_item": data.rod_boost_item.name
+                if data.rod_boost_item
                 else None,
             }
         )

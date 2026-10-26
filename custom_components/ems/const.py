@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-DOMAIN = "rennergy"
-VERSION = "0.3.0"
+DOMAIN = "ems"
+VERSION = "0.4.0"
 
 CONF_UNIT_ID = "unit_id"
 CONF_START_ADDRESS = "start_address"
@@ -21,9 +21,30 @@ CONF_STOVE_HEAT_ENERGY = "stove_heat_energy"
 CONF_STOVE_HEAT_POWER = "stove_heat_power"
 CONF_PV_ENERGY = "pv_energy"
 CONF_PV_POWER = "pv_power"
+# Optional external meters that replace the Rennergy values.
+CONF_GRID_IMPORT_ENERGY = "grid_import_energy"
+CONF_GRID_EXPORT_ENERGY = "grid_export_energy"
+CONF_GRID_POWER = "grid_power"
+CONF_BATTERY_CHARGE_ENERGY = "battery_charge_energy"
+CONF_BATTERY_DISCHARGE_ENERGY = "battery_discharge_energy"
+CONF_BATTERY_POWER = "battery_power"
+CONF_BATTERY_SOC = "battery_soc"
+CONF_CONSUMPTION_ENERGY = "consumption_energy"
+CONF_HOUSE_POWER = "house_power"
+CONF_ROD_ENERGY = "heating_rod_energy"
+CONF_ROD_POWER = "heating_rod_power"
+# Water meter (total counter) and current flow.
+CONF_WATER_VOLUME = "water_volume"
+CONF_WATER_FLOW = "water_flow"
 
 ENERGY_METER_OPTIONS = (
     CONF_PV_ENERGY,
+    CONF_GRID_IMPORT_ENERGY,
+    CONF_GRID_EXPORT_ENERGY,
+    CONF_BATTERY_CHARGE_ENERGY,
+    CONF_BATTERY_DISCHARGE_ENERGY,
+    CONF_CONSUMPTION_ENERGY,
+    CONF_ROD_ENERGY,
     CONF_HP_HEAT_ENERGY,
     CONF_HP_ELECTRIC_ENERGY,
     CONF_HC1_HEAT_ENERGY,
@@ -32,6 +53,10 @@ ENERGY_METER_OPTIONS = (
 )
 POWER_METER_OPTIONS = (
     CONF_PV_POWER,
+    CONF_GRID_POWER,
+    CONF_BATTERY_POWER,
+    CONF_HOUSE_POWER,
+    CONF_ROD_POWER,
     CONF_HP_HEAT_POWER,
     CONF_HP_ELECTRIC_POWER,
     CONF_STOVE_HEAT_POWER,
@@ -39,13 +64,47 @@ POWER_METER_OPTIONS = (
 # PV may consist of several systems (e.g. roof, fence, garden house).
 MULTI_ENTITY_OPTIONS = (CONF_PV_ENERGY, CONF_PV_POWER)
 
+# Meters page of the options, grouped into sections.
+METER_SECTIONS: dict[str, tuple[str, ...]] = {
+    "pv": (CONF_PV_ENERGY, CONF_PV_POWER),
+    "grid": (CONF_GRID_IMPORT_ENERGY, CONF_GRID_EXPORT_ENERGY, CONF_GRID_POWER),
+    "battery": (
+        CONF_BATTERY_CHARGE_ENERGY,
+        CONF_BATTERY_DISCHARGE_ENERGY,
+        CONF_BATTERY_POWER,
+        CONF_BATTERY_SOC,
+    ),
+    "house": (CONF_CONSUMPTION_ENERGY, CONF_HOUSE_POWER),
+    "heating_rod": (CONF_ROD_ENERGY, CONF_ROD_POWER),
+    "heat_pump": (
+        CONF_HP_HEAT_ENERGY,
+        CONF_HP_HEAT_POWER,
+        CONF_HP_ELECTRIC_ENERGY,
+        CONF_HP_ELECTRIC_POWER,
+    ),
+    "heat": (
+        CONF_HC1_HEAT_ENERGY,
+        CONF_HC2_HEAT_ENERGY,
+        CONF_STOVE_HEAT_ENERGY,
+        CONF_STOVE_HEAT_POWER,
+    ),
+    "water": (CONF_WATER_VOLUME, CONF_WATER_FLOW),
+}
+
+# Electric cars (options, "E-Autos"): section -> fields "<car>_<field>".
+CARS: tuple[str, ...] = ("car1", "car2", "car3")
+CAR_FIELDS: tuple[str, ...] = ("name", "soc", "power", "energy", "range")
+# Further electric consumers (options, "Verbraucher"), e.g. pool or whirlpool.
+LOADS: tuple[str, ...] = ("load1", "load2", "load3", "load4", "load5", "load6")
+LOAD_FIELDS: tuple[str, ...] = ("name", "power", "energy", "temp", "icon")
+
 # Plant schema (options, "Anlagenschema"): section -> fields.
 SCHEMA_SECTIONS: dict[str, tuple[str, ...]] = {
     "hc1": ("hc1_flow_temp", "hc1_return_temp", "hc1_heat_power"),
     "hc2": ("hc2_flow_temp", "hc2_return_temp", "hc2_heat_power"),
     "stove": ("stove_temp", "stove_flow_temp", "stove_return_temp", "stove_status"),
     "heat_pump": ("hp_flow_temp", "hp_return_temp", "hp_status"),
-    "tank": ("tank_sensors",),
+    "tank": ("tank_sensors", "rod_temp"),
 }
 CONF_TANK_SENSORS = "tank_sensors"
 CONF_HP_FLOW_TEMP = "hp_flow_temp"
@@ -60,6 +119,19 @@ DEFAULT_HP_RUNNING_W = 300
 CONF_HOT_WATER_ITEM = "hot_water_item"
 CONF_HOT_WATER_DURATION = "hot_water_duration"
 DEFAULT_HOT_WATER_DURATION = 60
+
+# Heating rod boost (options, "Aktionen").
+CONF_ROD_BOOST_ITEM = "rod_boost_item"
+CONF_ROD_BOOST_DURATION = "rod_boost_duration"
+CONF_ROD_BOOST_PERCENT = "rod_boost_percent"
+DEFAULT_ROD_BOOST_DURATION = 60
+DEFAULT_ROD_BOOST_PERCENT = 100
+
+# Services.
+SERVICE_SET_MANUAL = "set_manual"
+SERVICE_SET_AUTO = "set_auto"
+ATTR_VALUE = "value"
+ATTR_DURATION = "duration"
 
 PERIODS: tuple[str, ...] = ("day", "week", "month", "year")
 
@@ -133,6 +205,6 @@ MODULE_NAMES: dict[str, dict[str, str]] = {
     },
 }
 
-PANEL_URL_PATH = "rennergy"
-PANEL_STATIC_URL = "/rennergy_static"
-PANEL_COMPONENT = "rennergy-panel"
+PANEL_URL_PATH = "ems"
+PANEL_STATIC_URL = "/ems_static"
+PANEL_COMPONENT = "ems-panel"

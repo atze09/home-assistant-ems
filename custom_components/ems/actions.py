@@ -79,6 +79,15 @@ class ActionManager:
         """Stop a running override right away."""
         await self._async_finish(item)
 
+    @callback
+    def async_forget(self, item: Item) -> None:
+        """Drop the timer of an item but leave it in manual mode."""
+        if cancel := self._cancel.pop(item.address, None):
+            cancel()
+        if self._timers.pop(item.address, None) is not None:
+            self.hass.async_create_task(self._async_save())
+            self._notify()
+
     def _schedule(self, item: Item, end: datetime) -> None:
         if cancel := self._cancel.pop(item.address, None):
             cancel()

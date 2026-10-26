@@ -49,7 +49,7 @@ def module_device_info(
     serial = coordinator.system.serial
     return DeviceInfo(
         identifiers={(DOMAIN, f"{serial}_{module}")},
-        name=f"Rennergy {module_name(coordinator.hass.config.language, module)}",
+        name=f"EMS {module_name(coordinator.hass.config.language, module)}",
         manufacturer="Rennergy",
         model="EMS (smart1)",
         via_device=(DOMAIN, serial),

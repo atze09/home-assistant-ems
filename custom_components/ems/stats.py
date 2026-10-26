@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
@@ -27,7 +28,19 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CARS,
+    CONF_BATTERY_CHARGE_ENERGY,
+    CONF_BATTERY_DISCHARGE_ENERGY,
+    CONF_BATTERY_POWER,
+    CONF_CONSUMPTION_ENERGY,
     CONF_DATASHEET,
+    CONF_GRID_EXPORT_ENERGY,
+    CONF_GRID_IMPORT_ENERGY,
+    CONF_GRID_POWER,
+    CONF_HOUSE_POWER,
+    CONF_ROD_ENERGY,
+    CONF_ROD_POWER,
+    CONF_WATER_VOLUME,
     CONF_HC1_HEAT_ENERGY,
     CONF_HC2_HEAT_ENERGY,
     CONF_HP_ELECTRIC_ENERGY,
@@ -43,6 +56,7 @@ from .const import (
     CONF_STOVE_HEAT_POWER,
     DEFAULT_HP_RUNNING_W,
     DOMAIN,
+    LOADS,
     PERIODS,
 )
 from .coordinator import RennergyCoordinator
@@ -58,6 +72,13 @@ REFRESH_INTERVAL = timedelta(minutes=5)
 HEATING_ROD_ON_W = 20
 # Larger jumps of an energy counter are treated as glitches, not energy.
 MAX_PLAUSIBLE_KW = 100.0
+# Current COP from the energy counters: heat / electricity over the last
+# 30 minutes. Heat meters often report power only now and then, while their
+# counters (which also give the work ratios) are reliable.
+COP_WINDOW = timedelta(minutes=30)
+COP_MIN_SPAN = timedelta(minutes=10)
+COP_MIN_ELECTRIC_KWH = 0.1
+COP_MAX = 15.0
 
 _ENERGY_TO_KWH = {"Wh": 0.001, "kWh": 1.0, "MWh": 1000.0, "GJ": 277.7778, "MJ": 0.2777778}
 _POWER_TO_W = {"W": 1.0, "kW": 1000.0, "MW": 1_000_000.0}
@@ -67,11 +88,23 @@ HEATING_ROD_RUNTIME = "heating_rod_runtime"
 GRID_IMPORT = "grid_import"
 GRID_EXPORT = "grid_export"
 CONSUMPTION = "consumption"
+BATTERY_CHARGE = "battery_charge"
+BATTERY_DISCHARGE = "battery_discharge"
+WATER = "water"
 HP_FACTOR = "hp_factor"
 
-# External energy sources: key -> option.
+# External energy sources: key -> option. They win over internal sources
+# with the same key.
 EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
     "pv": CONF_PV_ENERGY,
+    GRID_IMPORT: CONF_GRID_IMPORT_ENERGY,
+    GRID_EXPORT: CONF_GRID_EXPORT_ENERGY,
+    BATTERY_CHARGE: CONF_BATTERY_CHARGE_ENERGY,
+    BATTERY_DISCHARGE: CONF_BATTERY_DISCHARGE_ENERGY,
+    CONSUMPTION: CONF_CONSUMPTION_ENERGY,
+    HEATING_ROD: CONF_ROD_ENERGY,
+    WATER: CONF_WATER_VOLUME,
+    **{device: f"{device}_energy" for device in (*CARS, *LOADS)},
     "hp_heat": CONF_HP_HEAT_ENERGY,
     "hp_electric": CONF_HP_ELECTRIC_ENERGY,
     "hc1_heat": CONF_HC1_HEAT_ENERGY,
@@ -80,6 +113,10 @@ EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
 }
 EXTERNAL_POWER_SOURCES: dict[str, str] = {
     "pv": CONF_PV_POWER,
+    "grid": CONF_GRID_POWER,
+    "battery": CONF_BATTERY_POWER,
+    "house": CONF_HOUSE_POWER,
+    HEATING_ROD: CONF_ROD_POWER,
     "hp_heat": CONF_HP_HEAT_POWER,
     "hp_electric": CONF_HP_ELECTRIC_POWER,
     "stove_heat": CONF_STOVE_HEAT_POWER,
@@ -89,6 +126,8 @@ INTERNAL_ENERGY_SOURCES: dict[str, str] = {
     HEATING_ROD: "heating_rod_power",
     GRID_IMPORT: "grid_import",
     GRID_EXPORT: "grid_export",
+    BATTERY_CHARGE: "battery_charge",
+    BATTERY_DISCHARGE: "battery_discharge",
     CONSUMPTION: "total_consumption",
 }
 
@@ -187,12 +226,23 @@ class StatsManager:
             for key, option in EXTERNAL_POWER_SOURCES.items()
             if options.get(option)
         }
+        # Display names of cars and further consumers.
+        self.names: dict[str, str] = {
+            **{
+                car: options.get(f"{car}_name") or f"E-Auto {index}"
+                for index, car in enumerate(CARS, 1)
+            },
+            **{
+                load: options.get(f"{load}_name") or f"Verbraucher {index}"
+                for index, load in enumerate(LOADS, 1)
+            },
+        }
         self.roles = roles
         self.heating_rod: Item | None = roles.get("heating_rod_power")
         self.internal: dict[str, Item] = {
             key: roles[role]
             for key, role in INTERNAL_ENERGY_SOURCES.items()
-            if role in roles
+            if role in roles and key not in self.external
         }
         self.datasheet = parse_datasheet(options.get(CONF_DATASHEET) or "")
         self.flow_sensor: str | None = options.get(CONF_HP_FLOW_TEMP)
@@ -204,6 +254,8 @@ class StatsManager:
         self._runtime = PeriodSums()
         self._factor = PeriodSums()
         self._last_totals: dict[str, float] = {}
+        # (time, heat counter, electricity counter) of the heat pump, in kWh.
+        self._cop_samples: deque[tuple[datetime, float, float]] = deque()
         self._last_tick: datetime | None = None
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[Callable[[], None]] = []
@@ -250,7 +302,8 @@ class StatsManager:
 
     @property
     def has_cop(self) -> bool:
-        return "hp_heat" in self.power_sensors and "hp_electric" in self.power_sensors
+        has_power = "hp_heat" in self.power_sensors and "hp_electric" in self.power_sensors
+        return has_power or self.has_work_ratio
 
     @property
     def has_lift(self) -> bool:
@@ -292,8 +345,22 @@ class StatsManager:
             return None
         return max(0.0, min(100.0, (1 - export / pv) * 100))
 
+    @property
+    def has_rod(self) -> bool:
+        return self.heating_rod is not None or HEATING_ROD in self.power_sensors
+
+    def rod_power(self, data: dict[int, Any] | None = None) -> float | None:
+        """Heating rod power in W: external sensor first, then the Rennergy item."""
+        if HEATING_ROD in self.power_sensors:
+            return self.power(HEATING_ROD)
+        data = self.coordinator.data if data is None else data
+        rod = self.heating_rod
+        if rod is None or not data or rod.address not in data:
+            return None
+        return data[rod.address][0]
+
     def runtime_hours(self, period: str) -> float | None:
-        if self.heating_rod is None:
+        if not self.has_rod:
             return None
         return self._runtime.get(period, "seconds", dt_util.utcnow()) / 3600
 
@@ -330,15 +397,38 @@ class StatsManager:
         if electric is not None:
             return electric > self.running_w
         heat = self.power("hp_heat")
-        return bool(heat and heat > 0)
+        if heat is not None:
+            return heat > 0
+        # No power sensors: running if the electricity counter moved lately.
+        if len(self._cop_samples) < 2:
+            return False
+        newest = self._cop_samples[-1]
+        recent = [s for s in self._cop_samples if newest[0] - s[0] <= COP_MIN_SPAN]
+        return newest[2] - recent[0][2] > 0
+
+    def _counter_cop(self) -> float | None:
+        """COP from the energy counters over the last COP_WINDOW."""
+        if len(self._cop_samples) < 2:
+            return None
+        start, newest = self._cop_samples[0], self._cop_samples[-1]
+        if newest[0] - start[0] < COP_MIN_SPAN:
+            return None
+        heat, electric = newest[1] - start[1], newest[2] - start[2]
+        if electric < COP_MIN_ELECTRIC_KWH or heat <= 0:
+            return None
+        return heat / electric
 
     def cop(self) -> float | None:
         if not self.hp_running():
             return None
-        heat, electric = self.power("hp_heat"), self.power("hp_electric")
-        if heat is None or not electric:
-            return None
-        return heat / electric
+        cop = self._counter_cop()
+        if cop is None:
+            heat, electric = self.power("hp_heat"), self.power("hp_electric")
+            # A heat power of 0 while running is a stale reading, not COP 0.
+            if not heat or not electric or heat <= 0:
+                return None
+            cop = heat / electric
+        return cop if 0 < cop <= COP_MAX else None
 
     def cop_target(self) -> float | None:
         flow, outdoor = self.flow_temp(), self.outdoor_temp()
@@ -399,7 +489,7 @@ class StatsManager:
 
     # ---------- internals ----------
 
-    def _entity_ids(self, source: str) -> list[str]:
+    def entity_ids(self, source: str) -> list[str]:
         if source in self.external:
             return self.external[source]
         item = self.internal.get(source)
@@ -417,7 +507,7 @@ class StatsManager:
         recorder = get_instance(self.hass)
         energy: dict[str, dict[str, float | None]] = {}
         for source in self.energy_sources:
-            entity_ids = self._entity_ids(source)
+            entity_ids = self.entity_ids(source)
             energy[source] = {}
             for period in PERIODS:
                 total: float | None = None
@@ -430,7 +520,7 @@ class StatsManager:
                             None,
                             entity_id,
                             {"change"},
-                            {"energy": "kWh"},
+                            {"energy": "kWh", "volume": "L"},
                         )
                     except Exception:  # noqa: BLE001 - statistics are best effort
                         _LOGGER.debug("No statistics for %s", entity_id, exc_info=True)
@@ -470,6 +560,17 @@ class StatsManager:
             return 0.0  # reset or glitch: just take the new reading as base
         return delta
 
+    def _add_cop_sample(self, now: datetime) -> None:
+        heat, electric = self._total("hp_heat"), self._total("hp_electric")
+        if heat is None or electric is None:
+            return
+        samples = self._cop_samples
+        if samples and (heat < samples[-1][1] or electric < samples[-1][2]):
+            samples.clear()  # counter reset
+        samples.append((now, heat, electric))
+        while samples and now - samples[0][0] > COP_WINDOW:
+            samples.popleft()
+
     @callback
     def _on_tick(self) -> None:
         """Integrate runtime and heat pump factor on every poll."""
@@ -479,13 +580,13 @@ class StatsManager:
         self._last_tick = now
         data = self.coordinator.data or {}
 
-        rod = self.heating_rod
-        if valid and rod is not None and rod.address in data:
-            power = data[rod.address][0]
+        if valid and self.has_rod:
+            power = self.rod_power(data)
             if power is not None and power > HEATING_ROD_ON_W:
                 self._runtime.add({"seconds": hours * 3600}, now)
 
         if self.has_work_ratio:
+            self._add_cop_sample(now)
             heat = self._delta("hp_heat", hours)
             electric = self._delta("hp_electric", hours)
             lift = self.lift()

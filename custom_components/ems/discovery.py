@@ -105,7 +105,7 @@ ROLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
         ("tank_top", r"^puffer oben$"),
         ("tank_middle", r"^puffer mitte"),
         ("tank_bottom", r"^puffer unten$"),
-        ("heating_rod_temp", r"^temperatur heizstab"),
+        ("heating_rod_temp", r"^temperatur heizstab|^heizstab[ -]?temp|^t[ _-]heizstab"),
         ("hk1_flow", r"^vorlauf hk ?1$"),
         ("hk1_target", r"^vorlauf soll hk ?1$"),
         ("hk1_pump", r"^pumpe hk ?1$"),

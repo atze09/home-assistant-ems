@@ -19,6 +19,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
+    IconSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -31,14 +32,22 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CAR_FIELDS,
+    CARS,
     CONF_DATASHEET,
     CONF_HOT_WATER_DURATION,
     CONF_HOT_WATER_ITEM,
     CONF_HP_RUNNING_W,
     CONF_MODULES,
     CONF_OUTDOOR_TEMP,
+    CONF_ROD_BOOST_DURATION,
+    CONF_ROD_BOOST_ITEM,
+    CONF_ROD_BOOST_PERCENT,
     CONF_TANK_SENSORS,
+    CONF_WATER_VOLUME,
     DEFAULT_HP_RUNNING_W,
+    DEFAULT_ROD_BOOST_DURATION,
+    DEFAULT_ROD_BOOST_PERCENT,
     MULTI_ENTITY_OPTIONS,
     SCHEMA_SECTIONS,
     CONF_SCAN_INTERVAL,
@@ -51,8 +60,10 @@ from .const import (
     DEFAULT_UNIT_ID,
     DOMAIN,
     ENERGY_METER_OPTIONS,
+    LOAD_FIELDS,
+    LOADS,
+    METER_SECTIONS,
     MODULES,
-    POWER_METER_OPTIONS,
 )
 from .datasheet import parse_datasheet
 from .discovery import Item, SystemInfo, async_discover, async_read_system_info
@@ -159,7 +170,7 @@ class RennergyConfigFlow(ConfigFlow, domain=DOMAIN):
         available = _modules_of(self._items)
         if user_input is not None:
             return self.async_create_entry(
-                title=f"Rennergy EMS ({self._data[CONF_HOST]})",
+                title=f"EMS ({self._data[CONF_HOST]})",
                 data=self._data,
                 options={
                     CONF_MODULES: user_input[CONF_MODULES],
@@ -225,7 +236,15 @@ class RennergyOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="init",
-            menu_options=["modules", "meters", "schema", "heat_pump", "actions"],
+            menu_options=[
+                "modules",
+                "meters",
+                "cars",
+                "loads",
+                "schema",
+                "heat_pump",
+                "actions",
+            ],
         )
 
     def _save(self, changes: dict[str, Any], cleared: tuple[str, ...] = ()) -> ConfigFlowResult:
@@ -275,40 +294,90 @@ class RennergyOptionsFlow(OptionsFlow):
     async def async_step_meters(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        keys = ENERGY_METER_OPTIONS + POWER_METER_OPTIONS
+        keys = tuple(k for fields in METER_SECTIONS.values() for k in fields)
         if user_input is not None:
+            flat: dict[str, Any] = {}
+            for section in METER_SECTIONS:
+                flat.update(user_input.get(section) or {})
             # Fields left empty are removed, so a meter can be unassigned again.
             return self._save(
-                {k: user_input[k] for k in keys if user_input.get(k)},
+                {k: v for k, v in flat.items() if k in keys and v},
                 cleared=keys,
             )
 
         options = self.config_entry.options
         schema: dict[Any, Any] = {}
-        for key in ENERGY_METER_OPTIONS:
-            multiple = key in MULTI_ENTITY_OPTIONS
-            value = options.get(key)
-            schema[
-                vol.Optional(
-                    key,
-                    description={
-                        "suggested_value": _as_list(value) if multiple else value
-                    },
+        for section, fields in METER_SECTIONS.items():
+            inner: dict[Any, Any] = {}
+            for key in fields:
+                multiple = key in MULTI_ENTITY_OPTIONS
+                value = options.get(key)
+                # Many heat meters report power without a device class.
+                device_class = (
+                    "energy"
+                    if key in ENERGY_METER_OPTIONS
+                    else "water"
+                    if key == CONF_WATER_VOLUME
+                    else None
                 )
-            ] = _sensor_selector("energy", multiple)
-        for key in POWER_METER_OPTIONS:
-            multiple = key in MULTI_ENTITY_OPTIONS
-            value = options.get(key)
-            # Many heat meters report power without a device class.
-            schema[
-                vol.Optional(
-                    key,
-                    description={
-                        "suggested_value": _as_list(value) if multiple else value
-                    },
-                )
-            ] = _sensor_selector(None, multiple)
+                inner[
+                    vol.Optional(
+                        key,
+                        description={
+                            "suggested_value": _as_list(value) if multiple else value
+                        },
+                    )
+                ] = _sensor_selector(device_class, multiple)
+            schema[vol.Optional(section)] = data_entry_flow.section(
+                vol.Schema(inner), {"collapsed": section not in ("pv", "heat_pump")}
+            )
         return self.async_show_form(step_id="meters", data_schema=vol.Schema(schema))
+
+    async def async_step_cars(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return self._devices_step("cars", CARS, CAR_FIELDS, user_input)
+
+    async def async_step_loads(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return self._devices_step("loads", LOADS, LOAD_FIELDS, user_input)
+
+    def _devices_step(
+        self,
+        step_id: str,
+        devices: tuple[str, ...],
+        fields: tuple[str, ...],
+        user_input: dict[str, Any] | None,
+    ) -> ConfigFlowResult:
+        """One collapsible section per device, stored flat as "<device>_<field>"."""
+        keys = tuple(f"{device}_{field}" for device in devices for field in fields)
+        if user_input is not None:
+            flat: dict[str, Any] = {}
+            for device in devices:
+                flat.update(user_input.get(device) or {})
+            return self._save(
+                {k: v for k, v in flat.items() if k in keys and v}, cleared=keys
+            )
+
+        options = self.config_entry.options
+        schema: dict[Any, Any] = {}
+        for index, device in enumerate(devices):
+            inner: dict[Any, Any] = {}
+            for field in fields:
+                key = f"{device}_{field}"
+                if field == "name":
+                    selector: Any = TextSelector()
+                elif field == "icon":
+                    selector = IconSelector()
+                else:
+                    selector = _sensor_selector("energy" if field == "energy" else None)
+                inner[vol.Optional(key, description=self._suggested(key))] = selector
+            used = any(options.get(f"{device}_{f}") for f in fields)
+            schema[vol.Optional(device)] = data_entry_flow.section(
+                vol.Schema(inner), {"collapsed": index > 0 and not used}
+            )
+        return self.async_show_form(step_id=step_id, data_schema=vol.Schema(schema))
 
     async def async_step_schema(
         self, user_input: dict[str, Any] | None = None
@@ -391,45 +460,53 @@ class RennergyOptionsFlow(OptionsFlow):
     async def async_step_actions(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        item_keys = (CONF_HOT_WATER_ITEM, CONF_ROD_BOOST_ITEM)
         if user_input is not None:
             changes = {
-                CONF_HOT_WATER_DURATION: int(user_input[CONF_HOT_WATER_DURATION])
+                CONF_HOT_WATER_DURATION: int(user_input[CONF_HOT_WATER_DURATION]),
+                CONF_ROD_BOOST_DURATION: int(user_input[CONF_ROD_BOOST_DURATION]),
+                CONF_ROD_BOOST_PERCENT: int(user_input[CONF_ROD_BOOST_PERCENT]),
             }
-            if user_input.get(CONF_HOT_WATER_ITEM):
-                changes[CONF_HOT_WATER_ITEM] = user_input[CONF_HOT_WATER_ITEM]
-            return self._save(changes, cleared=(CONF_HOT_WATER_ITEM,))
+            changes.update({k: user_input[k] for k in item_keys if user_input.get(k)})
+            return self._save(changes, cleared=item_keys)
 
         runtime = self._runtime
         writable = [i for i in (runtime.all_items if runtime else []) if i.writable]
         options = self.config_entry.options
+        item_selector = SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(value=i.uid, label=f"{i.name} ({i.address})")
+                    for i in writable
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+            )
+        )
+
+        def number(key: str, default: int, low: int, high: int, step: int, unit: str):
+            return {
+                vol.Required(key, default=options.get(key, default)): NumberSelector(
+                    NumberSelectorConfig(
+                        min=low,
+                        max=high,
+                        step=step,
+                        unit_of_measurement=unit,
+                        mode=NumberSelectorMode.BOX,
+                    )
+                )
+            }
+
         schema = vol.Schema(
             {
                 vol.Optional(
-                    CONF_HOT_WATER_ITEM,
-                    description={"suggested_value": options.get(CONF_HOT_WATER_ITEM)},
-                ): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            SelectOptionDict(value=i.uid, label=f"{i.name} ({i.address})")
-                            for i in writable
-                        ],
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                ),
-                vol.Required(
-                    CONF_HOT_WATER_DURATION,
-                    default=options.get(
-                        CONF_HOT_WATER_DURATION, DEFAULT_HOT_WATER_DURATION
-                    ),
-                ): NumberSelector(
-                    NumberSelectorConfig(
-                        min=5,
-                        max=600,
-                        step=5,
-                        unit_of_measurement="min",
-                        mode=NumberSelectorMode.BOX,
-                    )
-                ),
+                    CONF_HOT_WATER_ITEM, description=self._suggested(CONF_HOT_WATER_ITEM)
+                ): item_selector,
+                **number(CONF_HOT_WATER_DURATION, DEFAULT_HOT_WATER_DURATION, 5, 600, 5, "min"),
+                vol.Optional(
+                    CONF_ROD_BOOST_ITEM, description=self._suggested(CONF_ROD_BOOST_ITEM)
+                ): item_selector,
+                **number(CONF_ROD_BOOST_DURATION, DEFAULT_ROD_BOOST_DURATION, 5, 600, 5, "min"),
+                **number(CONF_ROD_BOOST_PERCENT, DEFAULT_ROD_BOOST_PERCENT, 1, 100, 1, "%"),
             }
         )
         return self.async_show_form(step_id="actions", data_schema=schema)

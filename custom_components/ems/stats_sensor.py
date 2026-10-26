@@ -15,6 +15,7 @@ from homeassistant.const import (
     UnitOfEnergy,
     UnitOfTemperature,
     UnitOfTime,
+    UnitOfVolume,
 )
 from homeassistant.helpers.device_registry import DeviceInfo
 
@@ -22,10 +23,13 @@ from .const import PERIODS
 from .coordinator import RennergyCoordinator
 from .entity import module_device_info
 from .stats import (
+    BATTERY_CHARGE,
+    BATTERY_DISCHARGE,
     CONSUMPTION,
     GRID_EXPORT,
     GRID_IMPORT,
     HEATING_ROD,
+    WATER,
     StatsManager,
 )
 
@@ -40,7 +44,11 @@ _LABELS = {
         HEATING_ROD: "Heizstab Energie",
         GRID_IMPORT: "Netzbezug",
         GRID_EXPORT: "Einspeisung",
+        BATTERY_CHARGE: "Batterie Ladung",
+        BATTERY_DISCHARGE: "Batterie Entladung",
         CONSUMPTION: "Gesamtverbrauch",
+        WATER: "Wasserverbrauch",
+        "charging": "Laden",
         "heat_total": "Wärmeerzeugung gesamt",
         "runtime": "Heizstab Laufzeit",
         "cop": "Wärmepumpe COP aktuell",
@@ -75,7 +83,11 @@ _LABELS = {
         HEATING_ROD: "Heating rod energy",
         GRID_IMPORT: "Grid import",
         GRID_EXPORT: "Grid export",
+        BATTERY_CHARGE: "Battery charge",
+        BATTERY_DISCHARGE: "Battery discharge",
         CONSUMPTION: "Total consumption",
+        WATER: "Water consumption",
+        "charging": "charging",
         "heat_total": "Heat generation total",
         "runtime": "Heating rod runtime",
         "cop": "Heat pump COP current",
@@ -148,12 +160,22 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
         "device_class": SensorDeviceClass.ENERGY,
         "state_class": SensorStateClass.TOTAL_INCREASING,
     }
+    water_kwargs = {
+        "unit": UnitOfVolume.LITERS,
+        "device_class": SensorDeviceClass.WATER,
+        "state_class": SensorStateClass.TOTAL_INCREASING,
+        "precision": 0,
+        "icon": "mdi:water",
+    }
     for source in stats.energy_sources:
+        label = labels.get(source) or stats.names.get(source, source)
+        if source.startswith("car"):
+            label = f"{label} {labels['charging']}"
         per_period(
             source,
-            lambda p, s=source: f"{labels[s]} {labels[p]}",
+            lambda p, s=label: f"{s} {labels[p]}",
             lambda p, s=source: stats.energy(s, p),
-            **energy_kwargs,
+            **(water_kwargs if source == WATER else energy_kwargs),
         )
 
     generators = [s for s in _HEAT_GENERATORS if s in stats.energy_sources]
@@ -227,7 +249,7 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
                 icon="mdi:scale-balance",
             )
 
-    if stats.heating_rod is not None:
+    if stats.has_rod:
         per_period(
             "heating_rod_runtime",
             lambda p: f"{labels['runtime']} {labels[p]}",

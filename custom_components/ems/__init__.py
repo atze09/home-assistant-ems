@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
@@ -13,6 +15,7 @@ from .actions import ActionManager
 from .const import (
     CONF_HOT_WATER_ITEM,
     CONF_MODULES,
+    CONF_ROD_BOOST_ITEM,
     CONF_SCAN_INTERVAL,
     CONF_START_ADDRESS,
     CONF_UNIT_ID,
@@ -31,6 +34,7 @@ from .discovery import (
 )
 from .modbus import ModbusError, SmartOneClient
 from .panel import async_register_panel, async_unregister_panel
+from .services import async_register_services
 from .stats import StatsManager
 from .websocket import async_register_websocket
 
@@ -47,18 +51,25 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_websocket(hass)
+    async_register_services(hass)
     return True
 
 
-def _hot_water_item(entry: RennergyConfigEntry, items: list[Item]) -> Item | None:
-    """Configured quick load item, or the controller's "Schnelladung" switch."""
+def _action_item(
+    entry: RennergyConfigEntry, items: list[Item], option: str, *patterns: str
+) -> Item | None:
+    """Configured item of an action, or the first writable item matching a pattern."""
     writable = [item for item in items if item.writable]
-    if uid := entry.options.get(CONF_HOT_WATER_ITEM):
+    if uid := entry.options.get(option):
         return next((item for item in writable if item.uid == uid), None)
-    return next(
-        (item for item in writable if "schnelladung" in normalize_name(item.name)),
-        None,
-    )
+    for pattern in patterns:
+        found = next(
+            (item for item in writable if re.search(pattern, normalize_name(item.name))),
+            None,
+        )
+        if found is not None:
+            return found
+    return None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> bool:
@@ -96,7 +107,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> 
     dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, system.serial)},
-        name="Rennergy EMS",
+        name="EMS",
         manufacturer="Rennergy",
         model="EMS (smart1)",
         serial_number=system.serial,
@@ -120,7 +131,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> 
         roles=roles,
         stats=stats,
         actions=actions,
-        hot_water_item=_hot_water_item(entry, all_items),
+        hot_water_item=_action_item(entry, all_items, CONF_HOT_WATER_ITEM, "schnelladung"),
+        # Prefer the 0-100 % slider of the heating rod over its on/off switch.
+        rod_boost_item=_action_item(
+            entry, all_items, CONF_ROD_BOOST_ITEM, r"^heizstab 0-100", r"heizstab"
+        ),
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await stats.async_after_setup()

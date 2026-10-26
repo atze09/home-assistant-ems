@@ -1,6 +1,6 @@
 {
-  "domain": "rennergy",
-  "name": "Rennergy EMS",
+  "domain": "ems",
+  "name": "EMS",
   "codeowners": ["@atze09"],
   "config_flow": true,
   "dependencies": ["frontend", "http", "panel_custom", "recorder", "websocket_api"],
@@ -9,5 +9,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/atze09/home-assistant-rennergy/issues",
   "requirements": [],
-  "version": "0.3.0"
+  "version": "0.4.0"
 }
