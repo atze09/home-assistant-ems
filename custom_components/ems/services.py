@@ -1,4 +1,4 @@
-"""Services of the Rennergy EMS, for use in automations."""
+"""Services of the EMS for the Rennergy controls, for use in automations."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .const import (
     SERVICE_SET_AUTO,
     SERVICE_SET_MANUAL,
 )
-from .coordinator import RennergyData
+from .coordinator import RennergyHub
 from .discovery import Item
 from .entity import ROLE_MODE, ROLE_VALUE, unique_id
 
@@ -32,7 +32,7 @@ SET_MANUAL_SCHEMA = vol.Schema(
 SET_AUTO_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_ids})
 
 
-def _resolve(hass: HomeAssistant, entity_id: str) -> tuple[RennergyData, Item]:
+def _resolve(hass: HomeAssistant, entity_id: str) -> tuple[RennergyHub, Item]:
     """Find the controllable item behind a switch, number or mode select."""
     reg_entry = er.async_get(hass).async_get(entity_id)
     entry = (
@@ -42,7 +42,9 @@ def _resolve(hass: HomeAssistant, entity_id: str) -> tuple[RennergyData, Item]:
     )
     if entry is None or entry.state is not ConfigEntryState.LOADED:
         raise ServiceValidationError(f"{entity_id} is not an EMS entity")
-    data: RennergyData = entry.runtime_data
+    data: RennergyHub | None = entry.runtime_data.rennergy
+    if data is None:
+        raise ServiceValidationError("No Rennergy controller connected")
     serial = data.system.serial
     for item in data.all_items:
         if item.writable and reg_entry.unique_id in (

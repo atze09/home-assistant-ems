@@ -1,16 +1,18 @@
-"""Constants for the Rennergy EMS integration."""
+"""Constants of the EMS integration."""
 
 from __future__ import annotations
 
 DOMAIN = "ems"
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
+# Rennergy smart1 controller (optional source), stored as options["rennergy"].
+CONF_RENNERGY = "rennergy"
 CONF_UNIT_ID = "unit_id"
 CONF_START_ADDRESS = "start_address"
 CONF_MODULES = "modules"
 CONF_SCAN_INTERVAL = "scan_interval"
 
-# External Home Assistant sensors (options, "Zähler").
+# Home Assistant entities assigned in the settings of the panel.
 CONF_HP_HEAT_ENERGY = "heat_pump_heat_energy"
 CONF_HP_HEAT_POWER = "heat_pump_heat_power"
 CONF_HP_ELECTRIC_ENERGY = "heat_pump_electric_energy"
@@ -19,9 +21,6 @@ CONF_HC1_HEAT_ENERGY = "heating_circuit_1_heat_energy"
 CONF_HC2_HEAT_ENERGY = "heating_circuit_2_heat_energy"
 CONF_STOVE_HEAT_ENERGY = "stove_heat_energy"
 CONF_STOVE_HEAT_POWER = "stove_heat_power"
-CONF_PV_ENERGY = "pv_energy"
-CONF_PV_POWER = "pv_power"
-# Optional external meters that replace the Rennergy values.
 CONF_GRID_IMPORT_ENERGY = "grid_import_energy"
 CONF_GRID_EXPORT_ENERGY = "grid_export_energy"
 CONF_GRID_POWER = "grid_power"
@@ -33,72 +32,13 @@ CONF_CONSUMPTION_ENERGY = "consumption_energy"
 CONF_HOUSE_POWER = "house_power"
 CONF_ROD_ENERGY = "heating_rod_energy"
 CONF_ROD_POWER = "heating_rod_power"
-# Water meter (total counter) and current flow.
 CONF_WATER_VOLUME = "water_volume"
 CONF_WATER_FLOW = "water_flow"
+CONF_TANK_SENSORS = "tank_sensors"
+CONF_HP_FLOW_TEMP = "hp_flow_temp"
+CONF_OUTDOOR_TEMP = "outdoor_temp"
 
-ENERGY_METER_OPTIONS = (
-    CONF_PV_ENERGY,
-    CONF_GRID_IMPORT_ENERGY,
-    CONF_GRID_EXPORT_ENERGY,
-    CONF_BATTERY_CHARGE_ENERGY,
-    CONF_BATTERY_DISCHARGE_ENERGY,
-    CONF_CONSUMPTION_ENERGY,
-    CONF_ROD_ENERGY,
-    CONF_HP_HEAT_ENERGY,
-    CONF_HP_ELECTRIC_ENERGY,
-    CONF_HC1_HEAT_ENERGY,
-    CONF_HC2_HEAT_ENERGY,
-    CONF_STOVE_HEAT_ENERGY,
-)
-POWER_METER_OPTIONS = (
-    CONF_PV_POWER,
-    CONF_GRID_POWER,
-    CONF_BATTERY_POWER,
-    CONF_HOUSE_POWER,
-    CONF_ROD_POWER,
-    CONF_HP_HEAT_POWER,
-    CONF_HP_ELECTRIC_POWER,
-    CONF_STOVE_HEAT_POWER,
-)
-# PV may consist of several systems (e.g. roof, fence, garden house).
-MULTI_ENTITY_OPTIONS = (CONF_PV_ENERGY, CONF_PV_POWER)
-
-# Meters page of the options, grouped into sections.
-METER_SECTIONS: dict[str, tuple[str, ...]] = {
-    "pv": (CONF_PV_ENERGY, CONF_PV_POWER),
-    "grid": (CONF_GRID_IMPORT_ENERGY, CONF_GRID_EXPORT_ENERGY, CONF_GRID_POWER),
-    "battery": (
-        CONF_BATTERY_CHARGE_ENERGY,
-        CONF_BATTERY_DISCHARGE_ENERGY,
-        CONF_BATTERY_POWER,
-        CONF_BATTERY_SOC,
-    ),
-    "house": (CONF_CONSUMPTION_ENERGY, CONF_HOUSE_POWER),
-    "heating_rod": (CONF_ROD_ENERGY, CONF_ROD_POWER),
-    "heat_pump": (
-        CONF_HP_HEAT_ENERGY,
-        CONF_HP_HEAT_POWER,
-        CONF_HP_ELECTRIC_ENERGY,
-        CONF_HP_ELECTRIC_POWER,
-    ),
-    "heat": (
-        CONF_HC1_HEAT_ENERGY,
-        CONF_HC2_HEAT_ENERGY,
-        CONF_STOVE_HEAT_ENERGY,
-        CONF_STOVE_HEAT_POWER,
-    ),
-    "water": (CONF_WATER_VOLUME, CONF_WATER_FLOW),
-}
-
-# Electric cars (options, "E-Autos"): section -> fields "<car>_<field>".
-CARS: tuple[str, ...] = ("car1", "car2", "car3")
-CAR_FIELDS: tuple[str, ...] = ("name", "soc", "power", "energy", "range")
-# Further electric consumers (options, "Verbraucher"), e.g. pool or whirlpool.
-LOADS: tuple[str, ...] = ("load1", "load2", "load3", "load4", "load5", "load6")
-LOAD_FIELDS: tuple[str, ...] = ("name", "power", "energy", "temp", "icon")
-
-# Plant schema (options, "Anlagenschema"): section -> fields.
+# Plant schema fields (temperatures, status) per section.
 SCHEMA_SECTIONS: dict[str, tuple[str, ...]] = {
     "hc1": ("hc1_flow_temp", "hc1_return_temp", "hc1_heat_power"),
     "hc2": ("hc2_flow_temp", "hc2_return_temp", "hc2_heat_power"),
@@ -106,9 +46,51 @@ SCHEMA_SECTIONS: dict[str, tuple[str, ...]] = {
     "heat_pump": ("hp_flow_temp", "hp_return_temp", "hp_status"),
     "tank": ("tank_sensors", "rod_temp"),
 }
-CONF_TANK_SENSORS = "tank_sensors"
-CONF_HP_FLOW_TEMP = "hp_flow_temp"
-CONF_OUTDOOR_TEMP = "outdoor_temp"
+
+# Every option that holds one entity id (tank_sensors holds a list).
+ENTITY_OPTIONS: tuple[str, ...] = (
+    CONF_GRID_IMPORT_ENERGY,
+    CONF_GRID_EXPORT_ENERGY,
+    CONF_GRID_POWER,
+    CONF_BATTERY_CHARGE_ENERGY,
+    CONF_BATTERY_DISCHARGE_ENERGY,
+    CONF_BATTERY_POWER,
+    CONF_BATTERY_SOC,
+    CONF_CONSUMPTION_ENERGY,
+    CONF_HOUSE_POWER,
+    CONF_ROD_ENERGY,
+    CONF_ROD_POWER,
+    CONF_HP_HEAT_ENERGY,
+    CONF_HP_HEAT_POWER,
+    CONF_HP_ELECTRIC_ENERGY,
+    CONF_HP_ELECTRIC_POWER,
+    CONF_HC1_HEAT_ENERGY,
+    CONF_HC2_HEAT_ENERGY,
+    CONF_STOVE_HEAT_ENERGY,
+    CONF_STOVE_HEAT_POWER,
+    CONF_WATER_VOLUME,
+    CONF_WATER_FLOW,
+    CONF_OUTDOOR_TEMP,
+    *(f for fields in SCHEMA_SECTIONS.values() for f in fields if f != CONF_TANK_SENSORS),
+)
+
+# Lists of devices: PV systems, electric cars and further consumers
+# (e.g. pool, whirlpool). Each entry has a stable "id" and a "name".
+CONF_PV_SYSTEMS = "pv_systems"
+CONF_CARS = "cars"
+CONF_LOADS = "loads"
+DEVICE_LISTS: dict[str, tuple[str, ...]] = {
+    CONF_PV_SYSTEMS: ("power", "energy"),
+    CONF_CARS: ("soc", "power", "energy", "range"),
+    CONF_LOADS: ("power", "energy", "temp", "icon"),
+}
+# Id prefix per list; ids look like "car_k3x9".
+DEVICE_ID_PREFIX: dict[str, str] = {CONF_PV_SYSTEMS: "pv_", CONF_CARS: "car_", CONF_LOADS: "load_"}
+# Cars and consumers get a device of their own.
+DEVICE_PREFIXES = ("car_", "load_")
+# Power options whose sign is turned around (e.g. grid: + export instead of + import).
+CONF_INVERT = "invert"
+INVERTIBLE = (CONF_GRID_POWER, CONF_BATTERY_POWER)
 
 # Heat pump datasheet (options, "Wärmepumpe").
 CONF_DATASHEET = "datasheet"

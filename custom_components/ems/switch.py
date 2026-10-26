@@ -1,4 +1,4 @@
-"""Manual switches of the Rennergy EMS."""
+"""Manual switches of the Rennergy controller."""
 
 from __future__ import annotations
 
@@ -8,19 +8,22 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import RennergyConfigEntry
+from .coordinator import EmsConfigEntry
 from .entity import RennergyEntity, entity_specs
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: RennergyConfigEntry,
+    entry: EmsConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator = entry.runtime_data.coordinator
+    hub = entry.runtime_data.rennergy
+    if hub is None:
+        return
+    coordinator = hub.coordinator
     async_add_entities(
         RennergySwitch(coordinator, item)
-        for item in entry.runtime_data.items
+        for item in hub.items
         for platform, _role in entity_specs(item)
         if platform == "switch"
     )

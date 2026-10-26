@@ -1,4 +1,4 @@
-"""Statistics of the Rennergy EMS.
+"""Statistics of the EMS.
 
 * Energy per period (day, week, month, year) is read from Home Assistant's
   long-term statistics, so it is correct right away (including history) and
@@ -28,16 +28,19 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CARS,
     CONF_BATTERY_CHARGE_ENERGY,
     CONF_BATTERY_DISCHARGE_ENERGY,
     CONF_BATTERY_POWER,
+    CONF_CARS,
     CONF_CONSUMPTION_ENERGY,
     CONF_DATASHEET,
     CONF_GRID_EXPORT_ENERGY,
     CONF_GRID_IMPORT_ENERGY,
     CONF_GRID_POWER,
     CONF_HOUSE_POWER,
+    CONF_INVERT,
+    CONF_LOADS,
+    CONF_PV_SYSTEMS,
     CONF_ROD_ENERGY,
     CONF_ROD_POWER,
     CONF_WATER_VOLUME,
@@ -50,13 +53,10 @@ from .const import (
     CONF_HP_HEAT_POWER,
     CONF_HP_RUNNING_W,
     CONF_OUTDOOR_TEMP,
-    CONF_PV_ENERGY,
-    CONF_PV_POWER,
     CONF_STOVE_HEAT_ENERGY,
     CONF_STOVE_HEAT_POWER,
     DEFAULT_HP_RUNNING_W,
     DOMAIN,
-    LOADS,
     PERIODS,
 )
 from .coordinator import RennergyCoordinator
@@ -68,6 +68,8 @@ _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
 SAVE_DELAY = 60
 REFRESH_INTERVAL = timedelta(minutes=5)
+# Heating rod runtime and current COP are integrated in this rhythm.
+TICK_INTERVAL = timedelta(seconds=15)
 # Heating rod counts as running above this power.
 HEATING_ROD_ON_W = 20
 # Larger jumps of an energy counter are treated as glitches, not energy.
@@ -94,9 +96,8 @@ WATER = "water"
 HP_FACTOR = "hp_factor"
 
 # External energy sources: key -> option. They win over internal sources
-# with the same key.
+# with the same key. PV systems, cars and consumers come from their lists.
 EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
-    "pv": CONF_PV_ENERGY,
     GRID_IMPORT: CONF_GRID_IMPORT_ENERGY,
     GRID_EXPORT: CONF_GRID_EXPORT_ENERGY,
     BATTERY_CHARGE: CONF_BATTERY_CHARGE_ENERGY,
@@ -104,7 +105,6 @@ EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
     CONSUMPTION: CONF_CONSUMPTION_ENERGY,
     HEATING_ROD: CONF_ROD_ENERGY,
     WATER: CONF_WATER_VOLUME,
-    **{device: f"{device}_energy" for device in (*CARS, *LOADS)},
     "hp_heat": CONF_HP_HEAT_ENERGY,
     "hp_electric": CONF_HP_ELECTRIC_ENERGY,
     "hc1_heat": CONF_HC1_HEAT_ENERGY,
@@ -112,7 +112,6 @@ EXTERNAL_ENERGY_SOURCES: dict[str, str] = {
     "stove_heat": CONF_STOVE_HEAT_ENERGY,
 }
 EXTERNAL_POWER_SOURCES: dict[str, str] = {
-    "pv": CONF_PV_POWER,
     "grid": CONF_GRID_POWER,
     "battery": CONF_BATTERY_POWER,
     "house": CONF_HOUSE_POWER,
@@ -136,6 +135,11 @@ def _as_list(value: Any) -> list[str]:
     if not value:
         return []
     return [value] if isinstance(value, str) else list(value)
+
+
+def device_list(options: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    """PV systems, cars or consumers: entries with an id."""
+    return [d for d in options.get(key) or [] if isinstance(d, dict) and d.get("id")]
 
 
 def period_key(period: str, now: datetime) -> str:
@@ -206,7 +210,7 @@ class StatsManager:
         self,
         hass: HomeAssistant,
         entry_id: str,
-        coordinator: RennergyCoordinator,
+        coordinator: RennergyCoordinator | None,
         options: dict[str, Any],
         roles: dict[str, Item],
     ) -> None:
@@ -226,16 +230,30 @@ class StatsManager:
             for key, option in EXTERNAL_POWER_SOURCES.items()
             if options.get(option)
         }
-        # Display names of cars and further consumers.
+        # Several PV systems are summed up.
+        pv_systems = device_list(options, CONF_PV_SYSTEMS)
+        if pv_energy := [p["energy"] for p in pv_systems if p.get("energy")]:
+            self.external["pv"] = pv_energy
+        if pv_power := [p["power"] for p in pv_systems if p.get("power")]:
+            self.power_sensors["pv"] = pv_power
+        # Every car and consumer with an energy counter is a source of its own.
+        self.devices: dict[str, dict[str, Any]] = {
+            d["id"]: d
+            for key in (CONF_CARS, CONF_LOADS)
+            for d in device_list(options, key)
+        }
+        self.cars = [d["id"] for d in device_list(options, CONF_CARS)]
+        for device_id, device in self.devices.items():
+            if device.get("energy"):
+                self.external[device_id] = [device["energy"]]
         self.names: dict[str, str] = {
-            **{
-                car: options.get(f"{car}_name") or f"E-Auto {index}"
-                for index, car in enumerate(CARS, 1)
-            },
-            **{
-                load: options.get(f"{load}_name") or f"Verbraucher {index}"
-                for index, load in enumerate(LOADS, 1)
-            },
+            device_id: device.get("name") or device_id
+            for device_id, device in self.devices.items()
+        }
+        # Power sensors with the sign turned around (key of EXTERNAL_POWER_SOURCES).
+        inverted = set(options.get(CONF_INVERT) or [])
+        self.inverted = {
+            key for key, option in EXTERNAL_POWER_SOURCES.items() if option in inverted
         }
         self.roles = roles
         self.heating_rod: Item | None = roles.get("heating_rod_power")
@@ -266,7 +284,9 @@ class StatsManager:
         stored = await self._store.async_load() or {}
         self._runtime = PeriodSums(stored.get(HEATING_ROD_RUNTIME))
         self._factor = PeriodSums(stored.get(HP_FACTOR))
-        self._unsubs.append(self.coordinator.async_add_listener(self._on_tick))
+        self._unsubs.append(
+            async_track_time_interval(self.hass, self._on_tick_timer, TICK_INTERVAL)
+        )
         self._unsubs.append(
             async_track_time_interval(self.hass, self._async_refresh, REFRESH_INTERVAL)
         )
@@ -353,7 +373,8 @@ class StatsManager:
         """Heating rod power in W: external sensor first, then the Rennergy item."""
         if HEATING_ROD in self.power_sensors:
             return self.power(HEATING_ROD)
-        data = self.coordinator.data if data is None else data
+        if data is None:
+            data = self._rennergy_data()
         rod = self.heating_rod
         if rod is None or not data or rod.address not in data:
             return None
@@ -374,7 +395,12 @@ class StatsManager:
                 continue
             unit = state.attributes.get("unit_of_measurement", "W")
             total = (total or 0.0) + value * _POWER_TO_W.get(unit, 1.0)
+        if total is not None and source in self.inverted:
+            total = -total
         return total
+
+    def _rennergy_data(self) -> dict[int, Any]:
+        return (self.coordinator.data if self.coordinator else None) or {}
 
     def flow_temp(self) -> float | None:
         return _float_state(self.hass.states.get(self.flow_sensor)) if self.flow_sensor else None
@@ -383,7 +409,7 @@ class StatsManager:
         if self.outdoor_sensor:
             return _float_state(self.hass.states.get(self.outdoor_sensor))
         item = self.roles.get("outdoor_temp")
-        data = self.coordinator.data or {}
+        data = self._rennergy_data()
         if item is None or item.address not in data:
             return None
         return data[item.address][0]
@@ -493,7 +519,7 @@ class StatsManager:
         if source in self.external:
             return self.external[source]
         item = self.internal.get(source)
-        if item is None:
+        if item is None or self.coordinator is None:
             return []
         registry = er.async_get(self.hass)
         entity_id = registry.async_get_entity_id(
@@ -572,13 +598,17 @@ class StatsManager:
             samples.popleft()
 
     @callback
+    def _on_tick_timer(self, _now: datetime) -> None:
+        self._on_tick()
+
+    @callback
     def _on_tick(self) -> None:
         """Integrate runtime and heat pump factor on every poll."""
         now = dt_util.utcnow()
         hours = (now - self._last_tick).total_seconds() / 3600 if self._last_tick else 0.0
         valid = self._last_tick is not None and 0 < hours < 0.2
         self._last_tick = now
-        data = self.coordinator.data or {}
+        data = self._rennergy_data()
 
         if valid and self.has_rod:
             power = self.rod_power(data)

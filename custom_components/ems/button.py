@@ -1,4 +1,4 @@
-"""Buttons of the Rennergy EMS: hot water quick load, heating rod boost, back to automatic."""
+"""Buttons of the Rennergy controller: hot water quick load, heating rod boost, back to automatic."""
 
 from __future__ import annotations
 
@@ -17,25 +17,27 @@ from .const import (
     DEFAULT_ROD_BOOST_PERCENT,
     MODE_AUTO,
 )
-from .coordinator import RennergyConfigEntry, RennergyCoordinator
+from .coordinator import EmsConfigEntry, RennergyCoordinator
 from .discovery import Item
 from .entity import module_device_info
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: RennergyConfigEntry,
+    entry: EmsConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    data = entry.runtime_data
+    hub = entry.runtime_data.rennergy
+    if hub is None:
+        return
     options = entry.options
     entities: list[ButtonEntity] = []
-    if data.hot_water_item is not None:
+    if hub.hot_water_item is not None:
         entities.append(
             TimedActionButton(
-                data.coordinator,
-                data.actions,
-                data.hot_water_item,
+                hub.coordinator,
+                hub.actions,
+                hub.hot_water_item,
                 key="hot_water_quick_load",
                 icon="mdi:water-boiler-alert",
                 module="hot_water",
@@ -43,12 +45,12 @@ async def async_setup_entry(
                 minutes=options.get(CONF_HOT_WATER_DURATION, DEFAULT_HOT_WATER_DURATION),
             )
         )
-    if data.rod_boost_item is not None:
+    if hub.rod_boost_item is not None:
         entities.append(
             TimedActionButton(
-                data.coordinator,
-                data.actions,
-                data.rod_boost_item,
+                hub.coordinator,
+                hub.actions,
+                hub.rod_boost_item,
                 key="heating_rod_boost",
                 icon="mdi:heating-coil",
                 module="heating_rod",
@@ -56,8 +58,8 @@ async def async_setup_entry(
                 minutes=options.get(CONF_ROD_BOOST_DURATION, DEFAULT_ROD_BOOST_DURATION),
             )
         )
-    if any(item.writable for item in data.items):
-        entities.append(AllAutomaticButton(data.coordinator, data.actions))
+    if any(item.writable for item in hub.items):
+        entities.append(AllAutomaticButton(hub.coordinator, hub.actions))
     async_add_entities(entities)
 
 

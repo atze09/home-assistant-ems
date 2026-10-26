@@ -1,42 +1,32 @@
-"""The Rennergy EMS integration."""
+"""The EMS integration.
+
+The EMS core (statistics, energy flow, devices per car and consumer) works with
+any Home Assistant entities. A Rennergy smart1 controller is an optional source
+that adds the heating values and the controls.
+"""
 
 from __future__ import annotations
 
-import re
+from datetime import timedelta
+import logging
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_HOST, CONF_PORT, Platform
+from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 
-from .actions import ActionManager
-from .const import (
-    CONF_HOT_WATER_ITEM,
-    CONF_MODULES,
-    CONF_ROD_BOOST_ITEM,
-    CONF_SCAN_INTERVAL,
-    CONF_START_ADDRESS,
-    CONF_UNIT_ID,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_START_ADDRESS,
-    DOMAIN,
-    MODULES,
-)
-from .coordinator import RennergyConfigEntry, RennergyCoordinator, RennergyData
-from .discovery import (
-    Item,
-    assign_roles,
-    async_discover,
-    async_read_system_info,
-    normalize_name,
-)
-from .modbus import ModbusError, SmartOneClient
+from .const import CONF_CARS, CONF_LOADS, CONF_RENNERGY, DEVICE_PREFIXES, DOMAIN
+from .coordinator import EmsConfigEntry, EmsData
+from .modbus import ModbusError
 from .panel import async_register_panel, async_unregister_panel
+from .rennergy import async_setup_rennergy, async_unload_rennergy
 from .services import async_register_services
-from .stats import StatsManager
+from .stats import StatsManager, device_list
 from .websocket import async_register_websocket
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
     Platform.BUTTON,
@@ -45,6 +35,9 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+# An unreachable Rennergy is tried again after this time; the EMS keeps running.
+RENNERGY_RETRY = timedelta(minutes=2)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -55,88 +48,45 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-def _action_item(
-    entry: RennergyConfigEntry, items: list[Item], option: str, *patterns: str
-) -> Item | None:
-    """Configured item of an action, or the first writable item matching a pattern."""
-    writable = [item for item in items if item.writable]
-    if uid := entry.options.get(option):
-        return next((item for item in writable if item.uid == uid), None)
-    for pattern in patterns:
-        found = next(
-            (item for item in writable if re.search(pattern, normalize_name(item.name))),
-            None,
-        )
-        if found is not None:
-            return found
-    return None
-
-
-async def async_setup_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> bool:
-    client = SmartOneClient(
-        entry.data[CONF_HOST], entry.data[CONF_PORT], entry.data[CONF_UNIT_ID]
-    )
-    try:
-        system = await async_read_system_info(client)
-        all_items = await async_discover(
-            client, entry.data.get(CONF_START_ADDRESS, DEFAULT_START_ADDRESS)
-        )
-    except ModbusError as err:
-        await client.close()
-        raise ConfigEntryNotReady(
-            f"Cannot reach Rennergy EMS at {entry.data[CONF_HOST]}: {err}"
-        ) from err
-
-    modules = set(entry.options.get(CONF_MODULES, MODULES))
-    items = [item for item in all_items if item.module in modules]
-
-    coordinator = RennergyCoordinator(
-        hass,
-        entry,
-        client,
-        system,
-        items,
-        entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-    )
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except ConfigEntryNotReady:
-        await client.close()
-        raise
-
+async def async_setup_entry(hass: HomeAssistant, entry: EmsConfigEntry) -> bool:
     dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, system.serial)},
+        identifiers={(DOMAIN, entry.entry_id)},
         name="EMS",
-        manufacturer="Rennergy",
-        model="EMS (smart1)",
-        serial_number=system.serial,
-        sw_version=system.version,
-        hw_version=system.hardware or None,
-        configuration_url=f"http://{entry.data[CONF_HOST]}",
+        manufacturer="EMS",
+        model="Energiemanagement",
     )
+    _async_sync_devices(hass, entry)
 
-    roles = assign_roles(items)
-    stats = StatsManager(hass, entry.entry_id, coordinator, dict(entry.options), roles)
+    hub = None
+    error = None
+    if config := entry.options.get(CONF_RENNERGY):
+        try:
+            hub = await async_setup_rennergy(hass, entry, config)
+        except ModbusError as err:
+            error = f"{config.get(CONF_HOST)}: {err}"
+            _LOGGER.warning(
+                "Rennergy at %s not reachable (%s), EMS starts without it and retries",
+                config.get(CONF_HOST),
+                err,
+            )
+
+            async def _retry(_now) -> None:
+                if entry.state is ConfigEntryState.LOADED:
+                    await hass.config_entries.async_reload(entry.entry_id)
+
+            entry.async_on_unload(async_call_later(hass, RENNERGY_RETRY, _retry))
+
+    stats = StatsManager(
+        hass,
+        entry.entry_id,
+        hub.coordinator if hub else None,
+        dict(entry.options),
+        hub.roles if hub else {},
+    )
     await stats.async_start()
-    actions = ActionManager(hass, entry.entry_id, coordinator, all_items)
-    await actions.async_start()
 
-    entry.runtime_data = RennergyData(
-        client=client,
-        coordinator=coordinator,
-        system=system,
-        items=items,
-        all_items=all_items,
-        roles=roles,
-        stats=stats,
-        actions=actions,
-        hot_water_item=_action_item(entry, all_items, CONF_HOT_WATER_ITEM, "schnelladung"),
-        # Prefer the 0-100 % slider of the heating rod over its on/off switch.
-        rod_boost_item=_action_item(
-            entry, all_items, CONF_ROD_BOOST_ITEM, r"^heizstab 0-100", r"heizstab"
-        ),
-    )
+    entry.runtime_data = EmsData(stats=stats, rennergy=hub, rennergy_error=error)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await stats.async_after_setup()
     await async_register_panel(hass)
@@ -144,17 +94,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> 
     return True
 
 
-async def _async_reload(hass: HomeAssistant, entry: RennergyConfigEntry) -> None:
+def _async_sync_devices(hass: HomeAssistant, entry: EmsConfigEntry) -> None:
+    """One device per car and consumer; devices of removed ones are deleted."""
+    registry = dr.async_get(hass)
+    prefix = f"{entry.entry_id}_"
+    wanted: set[str] = set()
+    for key, model in ((CONF_CARS, "E-Auto"), (CONF_LOADS, "Verbraucher")):
+        for device in device_list(entry.options, key):
+            identifier = f"{prefix}{device['id']}"
+            wanted.add(identifier)
+            registry.async_get_or_create(
+                config_entry_id=entry.entry_id,
+                identifiers={(DOMAIN, identifier)},
+                name=device.get("name") or device["id"],
+                manufacturer="EMS",
+                model=model,
+                via_device=(DOMAIN, entry.entry_id),
+            )
+    for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        for domain, identifier in device.identifiers:
+            own = domain == DOMAIN and identifier.startswith(prefix)
+            if own and identifier[len(prefix) :].startswith(DEVICE_PREFIXES) and identifier not in wanted:
+                registry.async_remove_device(device.id)
+
+
+async def _async_reload(hass: HomeAssistant, entry: EmsConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: RennergyConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: EmsConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         data = entry.runtime_data
-        await data.actions.async_stop()
         await data.stats.async_stop()
-        await data.client.close()
+        if data.rennergy:
+            await async_unload_rennergy(data.rennergy)
         others = [
             e
             for e in hass.config_entries.async_entries(DOMAIN)

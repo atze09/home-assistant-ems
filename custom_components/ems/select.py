@@ -1,4 +1,4 @@
-"""Auto/manual mode of writable items of the Rennergy EMS."""
+"""Auto/manual mode of writable items of the Rennergy controller."""
 
 from __future__ import annotations
 
@@ -9,20 +9,23 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import MODE_AUTO, MODE_MANUAL
-from .coordinator import RennergyConfigEntry, RennergyCoordinator
+from .coordinator import EmsConfigEntry, RennergyCoordinator
 from .discovery import Item
 from .entity import ROLE_MODE, RennergyEntity, entity_specs
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: RennergyConfigEntry,
+    entry: EmsConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator = entry.runtime_data.coordinator
+    hub = entry.runtime_data.rennergy
+    if hub is None:
+        return
+    coordinator = hub.coordinator
     async_add_entities(
         RennergyModeSelect(coordinator, item)
-        for item in entry.runtime_data.items
+        for item in hub.items
         for platform, _role in entity_specs(item)
         if platform == "select"
     )

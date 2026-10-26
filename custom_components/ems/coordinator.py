@@ -27,12 +27,12 @@ _LOGGER = logging.getLogger(__name__)
 METER_VALUES = 4
 
 type ItemValues = tuple[float | None, ...]
-type RennergyConfigEntry = ConfigEntry[RennergyData]
+type EmsConfigEntry = ConfigEntry[EmsData]
 
 
 @dataclass
-class RennergyData:
-    """Runtime data stored on the config entry."""
+class RennergyHub:
+    """A connected Rennergy smart1 controller (optional source of the EMS)."""
 
     client: SmartOneClient
     coordinator: RennergyCoordinator
@@ -40,10 +40,19 @@ class RennergyData:
     items: list[Item]
     all_items: list[Item]
     roles: dict[str, Item]
-    stats: StatsManager
     actions: ActionManager
     hot_water_item: Item | None = None
     rod_boost_item: Item | None = None
+
+
+@dataclass
+class EmsData:
+    """Runtime data stored on the config entry."""
+
+    stats: StatsManager
+    rennergy: RennergyHub | None = None
+    # Why a configured Rennergy is missing (unreachable, …), for the panel.
+    rennergy_error: str | None = None
 
 
 class RennergyCoordinator(DataUpdateCoordinator[dict[int, ItemValues]]):

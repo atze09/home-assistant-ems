@@ -1,4 +1,4 @@
-"""Sensors of the Rennergy EMS."""
+"""Sensors: Rennergy items and the statistics of the EMS."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import RennergyConfigEntry, RennergyCoordinator
+from .coordinator import EmsConfigEntry, RennergyCoordinator
 from .discovery import Item, normalize_name
 from .entity import (
     ROLE_LAST_30_DAYS,
@@ -29,7 +29,7 @@ from .entity import (
     RennergyEntity,
     entity_specs,
 )
-from .stats_sensor import RennergyStatSensor, build_descriptions
+from .stats_sensor import EmsStatSensor, build_descriptions
 
 # Device unit -> (HA unit, device class, display precision)
 _UNITS: dict[str, tuple[str | None, SensorDeviceClass | None, int]] = {
@@ -49,23 +49,23 @@ _METER_ROLE_INDEX = {ROLE_VALUE: 0, ROLE_TODAY: 1, ROLE_LAST_30_DAYS: 2, ROLE_YE
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: RennergyConfigEntry,
+    entry: EmsConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    coordinator = entry.runtime_data.coordinator
-    entities: list[SensorEntity] = []
-    for item in entry.runtime_data.items:
-        for platform, role in entity_specs(item):
-            if platform != "sensor":
-                continue
-            if item.is_meter and role != ROLE_VALUE:
-                entities.append(RennergyMeterEnergySensor(coordinator, item, role))
-            else:
-                entities.append(RennergyValueSensor(coordinator, item))
-
     data = entry.runtime_data
+    entities: list[SensorEntity] = []
+    if (hub := data.rennergy) is not None:
+        for item in hub.items:
+            for platform, role in entity_specs(item):
+                if platform != "sensor":
+                    continue
+                if item.is_meter and role != ROLE_VALUE:
+                    entities.append(RennergyMeterEnergySensor(hub.coordinator, item, role))
+                else:
+                    entities.append(RennergyValueSensor(hub.coordinator, item))
+
     entities.extend(
-        RennergyStatSensor(data.stats, coordinator, description)
+        EmsStatSensor(data.stats, entry.entry_id, description)
         for description in build_descriptions(hass.config.language, data.stats)
     )
     async_add_entities(entities)

@@ -50,6 +50,12 @@ Noch offen:
 | Batteriezyklen | Σ Entladung / Kapazität | offen |
 | Ersparnis € | eingesparter Netzbezug × Tarif − entgangene Einspeisevergütung | offen |
 
+## v0.5: EMS-Kern, Rennergy als Quelle (umgesetzt)
+- EMS ohne Pflicht-Hardware einrichtbar, Rennergy smart1 optional und jederzeit zu- oder abschaltbar
+- Einstellungen-Tab im Panel mit Live-Vorschau, Warnungen und Prüfung des Vorzeichens
+- Beliebig viele PV-Anlagen, E-Autos und Verbraucher; je Auto und Verbraucher ein Gerät
+- Energiefluss ganz oben in der Übersicht
+
 ## Stufe 3: Automatisierte Steuerung (Gerüst)
 
 Regel-Engine in der Integration, im Panel bearbeitbar. Jede Regel ist einzeln schaltbar

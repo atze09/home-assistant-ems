@@ -1,4 +1,4 @@
-"""Base entity for the Rennergy EMS."""
+"""Devices and the base entity of the Rennergy items."""
 
 from __future__ import annotations
 
@@ -43,13 +43,23 @@ def module_name(language: str, module: str) -> str:
     return names[module]
 
 
+def ems_device_info(entry_id: str, key: str, name: str) -> DeviceInfo:
+    """A device of the EMS itself (statistics, a car, a consumer)."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{entry_id}_{key}")},
+        name=name,
+        manufacturer="EMS",
+        via_device=(DOMAIN, entry_id),
+    )
+
+
 def module_device_info(
     coordinator: RennergyCoordinator, module: str
 ) -> DeviceInfo:
     serial = coordinator.system.serial
     return DeviceInfo(
         identifiers={(DOMAIN, f"{serial}_{module}")},
-        name=f"EMS {module_name(coordinator.hass.config.language, module)}",
+        name=f"Rennergy {module_name(coordinator.hass.config.language, module)}",
         manufacturer="Rennergy",
         model="EMS (smart1)",
         via_device=(DOMAIN, serial),

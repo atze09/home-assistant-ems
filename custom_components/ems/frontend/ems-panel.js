@@ -115,6 +115,8 @@ const I18N = {
     previous: "Vorheriger Zeitraum",
     next: "Nächster Zeitraum",
     cw: "KW",
+    settings: "Einstellungen",
+    rennergy_unreachable: "Die Rennergy ist gerade nicht erreichbar. Das EMS läuft ohne Heizungswerte weiter und versucht es alle 2 Minuten erneut.",
   },
   en: {
     overview: "Overview",
@@ -230,8 +232,263 @@ const I18N = {
     previous: "Previous period",
     next: "Next period",
     cw: "CW",
+    settings: "Settings",
+    rennergy_unreachable: "The Rennergy is not reachable right now. The EMS keeps running without heating values and retries every 2 minutes.",
   },
 };
+
+// Texts of the settings tab: section titles, field labels, hints.
+const SETTINGS_I18N = {
+  de: {
+    settings: "Einstellungen",
+    save: "Speichern",
+    saving: "Speichere …",
+    saved: "Gespeichert. Das EMS lädt neu …",
+    unsaved: "Ungespeicherte Änderungen",
+    save_failed: "Speichern fehlgeschlagen",
+    add: "Hinzufügen",
+    remove: "Entfernen",
+    name: "Name",
+    icon: "Symbol (mdi:…)",
+    clear: "Leeren",
+    not_found: "Entität nicht gefunden",
+    w_energy_unit: "keine Energie in kWh/Wh",
+    w_total: "kein Gesamtzähler? (state_class total_increasing erwartet)",
+    w_daily: "sieht nach Tages- oder Monatszähler aus",
+    w_power_unit: "keine Leistung in W/kW",
+    w_temp_unit: "keine Temperatur",
+    w_pct_unit: "nicht in %",
+    w_volume_unit: "kein Volumen (L, m³)",
+    from_rennergy: "leer = Rennergy",
+    invert: "Vorzeichen umkehren",
+    sign_now: "jetzt",
+    sign_import: "wird als Bezug gezeigt",
+    sign_export: "wird als Einspeisung gezeigt",
+    sign_charge: "wird als Laden gezeigt",
+    sign_discharge: "wird als Entladen gezeigt",
+    s_rennergy: "Rennergy smart1 (Heizung und Steuerung)",
+    s_rennergy_hint: "Optional. Liefert Puffer, Heizkreise, Heizstab und Warmwasser und ermöglicht das Steuern.",
+    r_connected: "Verbunden",
+    r_unreachable: "Nicht erreichbar",
+    r_none: "Keine Rennergy verbunden.",
+    r_connect: "Rennergy verbinden",
+    r_disconnect: "Rennergy entfernen",
+    r_test: "Verbindung testen",
+    r_testing: "Teste …",
+    r_ok: "Gefunden",
+    r_values: "Werte",
+    r_failed: "Keine Verbindung",
+    r_areas: "Bereiche",
+    host: "IP-Adresse",
+    port: "Port",
+    unit_id: "Modbus Unit-ID",
+    start_address: "Erstes Register",
+    scan_interval: "Abfrage alle (s)",
+    s_pv: "PV-Anlagen",
+    s_pv_hint: "Je Anlage Leistung und Gesamtzähler. Mehrere Anlagen werden summiert und in der Statistik einzeln gezeigt.",
+    pv_new: "PV-Anlage",
+    s_grid: "Netz",
+    s_battery: "Batterie",
+    s_house: "Haus",
+    s_heat_pump: "Wärmepumpe",
+    s_heating_rod: "Heizstab",
+    s_heat: "Heizkreise und Ofen",
+    s_tank: "Speicher",
+    s_tank_hint: "Temperaturfühler von oben nach unten. Leer = Fühler der Rennergy.",
+    s_cars: "E-Autos",
+    s_cars_hint: "Jedes Auto wird ein eigenes Gerät mit seiner Ladeenergie je Zeitraum.",
+    car_new: "E-Auto",
+    s_loads: "Verbraucher",
+    s_loads_hint: "Z. B. Pool, Whirlpool, Sauna. Jeder Verbraucher wird ein eigenes Gerät.",
+    load_new: "Verbraucher",
+    s_water: "Wasser",
+    s_actions: "Aktionen der Rennergy",
+    auto_pick: "automatisch",
+    f: {
+      power: "Leistung",
+      energy: "Energie (Gesamtzähler)",
+      soc: "Ladezustand",
+      range: "Reichweite",
+      temp: "Temperatur",
+      grid_import_energy: "Bezug (Gesamtzähler)",
+      grid_export_energy: "Einspeisung (Gesamtzähler)",
+      grid_power: "Leistung (+ Bezug, − Einspeisung)",
+      battery_charge_energy: "Geladen (Gesamtzähler)",
+      battery_discharge_energy: "Entladen (Gesamtzähler)",
+      battery_power: "Leistung (+ Laden, − Entladen)",
+      battery_soc: "Ladezustand",
+      consumption_energy: "Gesamtverbrauch (Gesamtzähler)",
+      house_power: "Hausverbrauch Leistung",
+      heat_pump_heat_energy: "Wärmemenge (Gesamtzähler)",
+      heat_pump_heat_power: "Wärmeleistung",
+      heat_pump_electric_energy: "Strom (Gesamtzähler)",
+      heat_pump_electric_power: "Elektrische Leistung",
+      hp_flow_temp: "Vorlauf (auch für den Hub)",
+      hp_return_temp: "Rücklauf",
+      hp_status: "Status (ein/aus)",
+      outdoor_temp: "Außentemperatur",
+      hp_running_w: "Läuft ab elektrischer Leistung (W)",
+      datasheet: "Datenblatt-COP, je Zeile z. B. A2/W35 = 3,8",
+      heating_rod_energy: "Energie (Gesamtzähler)",
+      heating_rod_power: "Leistung",
+      rod_temp: "Temperatur (oben im Speicher)",
+      heating_circuit_1_heat_energy: "Heizkreis 1 Wärmemenge",
+      hc1_heat_power: "Heizkreis 1 Wärmeleistung",
+      hc1_flow_temp: "Heizkreis 1 Vorlauf",
+      hc1_return_temp: "Heizkreis 1 Rücklauf",
+      heating_circuit_2_heat_energy: "Heizkreis 2 Wärmemenge",
+      hc2_heat_power: "Heizkreis 2 Wärmeleistung",
+      hc2_flow_temp: "Heizkreis 2 Vorlauf",
+      hc2_return_temp: "Heizkreis 2 Rücklauf",
+      stove_heat_energy: "Ofen Wärmemenge",
+      stove_heat_power: "Ofen Wärmeleistung",
+      stove_temp: "Ofen Temperatur",
+      stove_flow_temp: "Ofen Vorlauf",
+      stove_return_temp: "Ofen Rücklauf",
+      stove_status: "Ofen Status (ein/aus)",
+      water_volume: "Wasserzähler (Gesamtzähler)",
+      water_flow: "Durchfluss",
+      hot_water_item: "Element Warmwasser-Schnellladung",
+      hot_water_duration: "Dauer Schnellladung (min)",
+      rod_boost_item: "Element Heizstab-Boost",
+      rod_boost_duration: "Dauer Boost (min)",
+      rod_boost_percent: "Leistung Boost (%)",
+    },
+  },
+  en: {
+    settings: "Settings",
+    save: "Save",
+    saving: "Saving …",
+    saved: "Saved. The EMS reloads …",
+    unsaved: "Unsaved changes",
+    save_failed: "Saving failed",
+    add: "Add",
+    remove: "Remove",
+    name: "Name",
+    icon: "Icon (mdi:…)",
+    clear: "Clear",
+    not_found: "Entity not found",
+    w_energy_unit: "not energy in kWh/Wh",
+    w_total: "not a total counter? (state_class total_increasing expected)",
+    w_daily: "looks like a daily or monthly counter",
+    w_power_unit: "not power in W/kW",
+    w_temp_unit: "not a temperature",
+    w_pct_unit: "not in %",
+    w_volume_unit: "not a volume (L, m³)",
+    from_rennergy: "empty = Rennergy",
+    invert: "Invert sign",
+    sign_now: "now",
+    sign_import: "shown as import",
+    sign_export: "shown as export",
+    sign_charge: "shown as charging",
+    sign_discharge: "shown as discharging",
+    s_rennergy: "Rennergy smart1 (heating and controls)",
+    s_rennergy_hint: "Optional. Adds buffer tank, heating circuits, heating rod and hot water and allows control.",
+    r_connected: "Connected",
+    r_unreachable: "Not reachable",
+    r_none: "No Rennergy connected.",
+    r_connect: "Connect Rennergy",
+    r_disconnect: "Remove Rennergy",
+    r_test: "Test connection",
+    r_testing: "Testing …",
+    r_ok: "Found",
+    r_values: "values",
+    r_failed: "No connection",
+    r_areas: "Areas",
+    host: "IP address",
+    port: "Port",
+    unit_id: "Modbus unit ID",
+    start_address: "First register",
+    scan_interval: "Poll every (s)",
+    s_pv: "PV systems",
+    s_pv_hint: "Power and total counter per system. Several systems are summed up and shown one by one in the statistics.",
+    pv_new: "PV system",
+    s_grid: "Grid",
+    s_battery: "Battery",
+    s_house: "House",
+    s_heat_pump: "Heat pump",
+    s_heating_rod: "Heating rod",
+    s_heat: "Heating circuits and stove",
+    s_tank: "Buffer tank",
+    s_tank_hint: "Temperature sensors from top to bottom. Empty = sensors of the Rennergy.",
+    s_cars: "Electric cars",
+    s_cars_hint: "Every car becomes a device of its own with its charged energy per period.",
+    car_new: "Car",
+    s_loads: "Consumers",
+    s_loads_hint: "E.g. pool, whirlpool, sauna. Every consumer becomes a device of its own.",
+    load_new: "Consumer",
+    s_water: "Water",
+    s_actions: "Rennergy actions",
+    auto_pick: "automatic",
+    f: {
+      power: "Power",
+      energy: "Energy (total counter)",
+      soc: "State of charge",
+      range: "Range",
+      temp: "Temperature",
+      grid_import_energy: "Import (total counter)",
+      grid_export_energy: "Export (total counter)",
+      grid_power: "Power (+ import, − export)",
+      battery_charge_energy: "Charged (total counter)",
+      battery_discharge_energy: "Discharged (total counter)",
+      battery_power: "Power (+ charging, − discharging)",
+      battery_soc: "State of charge",
+      consumption_energy: "Total consumption (total counter)",
+      house_power: "House power",
+      heat_pump_heat_energy: "Heat (total counter)",
+      heat_pump_heat_power: "Heat power",
+      heat_pump_electric_energy: "Electricity (total counter)",
+      heat_pump_electric_power: "Electric power",
+      hp_flow_temp: "Flow (also used for the lift)",
+      hp_return_temp: "Return",
+      hp_status: "Status (on/off)",
+      outdoor_temp: "Outdoor temperature",
+      hp_running_w: "Runs above electric power (W)",
+      datasheet: "Datasheet COP, one per line, e.g. A2/W35 = 3.8",
+      heating_rod_energy: "Energy (total counter)",
+      heating_rod_power: "Power",
+      rod_temp: "Temperature (top of the tank)",
+      heating_circuit_1_heat_energy: "Heating circuit 1 heat",
+      hc1_heat_power: "Heating circuit 1 heat power",
+      hc1_flow_temp: "Heating circuit 1 flow",
+      hc1_return_temp: "Heating circuit 1 return",
+      heating_circuit_2_heat_energy: "Heating circuit 2 heat",
+      hc2_heat_power: "Heating circuit 2 heat power",
+      hc2_flow_temp: "Heating circuit 2 flow",
+      hc2_return_temp: "Heating circuit 2 return",
+      stove_heat_energy: "Stove heat",
+      stove_heat_power: "Stove heat power",
+      stove_temp: "Stove temperature",
+      stove_flow_temp: "Stove flow",
+      stove_return_temp: "Stove return",
+      stove_status: "Stove status (on/off)",
+      water_volume: "Water meter (total counter)",
+      water_flow: "Flow",
+      hot_water_item: "Item for hot water quick load",
+      hot_water_duration: "Quick load duration (min)",
+      rod_boost_item: "Item for heating rod boost",
+      rod_boost_duration: "Boost duration (min)",
+      rod_boost_percent: "Boost power (%)",
+    },
+  },
+};
+
+// Settings sections: [option, kind, Rennergy role used when empty].
+const SETTINGS_SECTIONS = [
+  ["grid", [["grid_import_energy", "energy", "grid_import"], ["grid_export_energy", "energy", "grid_export"], ["grid_power", "power", "grid_power"]]],
+  ["battery", [["battery_charge_energy", "energy", "battery_charge"], ["battery_discharge_energy", "energy", "battery_discharge"], ["battery_power", "power", "battery_power"], ["battery_soc", "pct", "battery_soc"]]],
+  ["house", [["consumption_energy", "energy", "total_consumption"], ["house_power", "power", "house_power"]]],
+  ["heat_pump", [["heat_pump_heat_energy", "energy"], ["heat_pump_heat_power", "power"], ["heat_pump_electric_energy", "energy"], ["heat_pump_electric_power", "power"], ["hp_flow_temp", "temp"], ["hp_return_temp", "temp"], ["hp_status", "any"], ["outdoor_temp", "temp", "outdoor_temp"]]],
+  ["heating_rod", [["heating_rod_energy", "energy", "heating_rod_power"], ["heating_rod_power", "power", "heating_rod_power"], ["rod_temp", "temp", "heating_rod_temp"]]],
+  ["heat", [["heating_circuit_1_heat_energy", "energy"], ["hc1_heat_power", "power"], ["hc1_flow_temp", "temp", "hk1_flow"], ["hc1_return_temp", "temp"], ["heating_circuit_2_heat_energy", "energy"], ["hc2_heat_power", "power"], ["hc2_flow_temp", "temp", "hk2_flow"], ["hc2_return_temp", "temp"], ["stove_heat_energy", "energy"], ["stove_heat_power", "power"], ["stove_temp", "temp", "stove_temp"], ["stove_flow_temp", "temp"], ["stove_return_temp", "temp"], ["stove_status", "any"]]],
+  ["water", [["water_volume", "volume"], ["water_flow", "any"]]],
+];
+// Device lists: [key, id prefix, fields as [field, kind], icon].
+const SETTINGS_LISTS = [
+  ["pv_systems", "pv_", [["power", "power"], ["energy", "energy"]], "mdi:solar-power-variant"],
+  ["cars", "car_", [["soc", "pct"], ["power", "power"], ["energy", "energy"], ["range", "any"]], "mdi:car-electric"],
+  ["loads", "load_", [["power", "power"], ["energy", "energy"], ["temp", "temp"]], "mdi:power-plug"],
+];
 
 const COLORS = {
   pv: "var(--rn-pv)",
@@ -451,7 +708,7 @@ const STYLE = `
   .fpill small { font-size: 11px; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fpill b { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; }
   .filters button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--divider-color, #888); border-radius: 999px;
                     background: var(--card-background-color); color: var(--primary-text-color); padding: 6px 12px; font-size: 13px; cursor: pointer; }
   .filters button i { width: 10px; height: 10px; border-radius: 50%; }
@@ -466,6 +723,41 @@ const STYLE = `
   .barchart .line { fill: none; stroke-width: 1.6; }
   .barchart .hit { fill: transparent; }
   .barchart .hit:hover { fill: color-mix(in srgb, var(--primary-text-color) 6%, transparent); }
+
+  /* ----- settings ----- */
+  .sgrid { display: grid; gap: 12px 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .sf { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .sf.wide { grid-column: 1 / -1; }
+  .sf > label, .slabel { font-size: 13px; color: var(--secondary-text-color); }
+  .slabel { display: block; margin: 12px 0 6px; }
+  .sf input, .sf select, .sf textarea, .sitem input { box-sizing: border-box; width: 100%; padding: 8px 10px; border-radius: 8px; font-size: 14px;
+      border: 1px solid var(--divider-color, #888); background: var(--secondary-background-color); color: var(--primary-text-color); font-family: inherit; }
+  .sf textarea { resize: vertical; }
+  .sfi { display: flex; gap: 4px; }
+  .sfi input { flex: 1; min-width: 0; }
+  .clr { border: none; background: none; color: var(--secondary-text-color); font-size: 18px; cursor: pointer; padding: 0 6px; border-radius: 6px; }
+  .clr:hover { background: var(--secondary-background-color); }
+  .sfp { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--secondary-text-color); min-height: 4px; }
+  .sfp b { color: var(--primary-text-color); font-weight: 500; }
+  .sfp .warn, .warn { color: var(--warning-color, #ffa600); }
+  .sfp .sign { color: var(--primary-color); }
+  .ok { color: var(--success-color, #43a047); }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--primary-text-color) !important; cursor: pointer; }
+  .chk input { width: auto; }
+  .srow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 10px 0; font-size: 14px; }
+  .modules { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .sitem { border: 1px solid var(--divider-color, rgba(127,127,127,.25)); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .sitem-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .sitem-head ha-icon { --mdc-icon-size: 24px; color: var(--primary-color); flex: none; }
+  .sitem-head .sname { flex: 2; font-weight: 500; }
+  .sitem-head .sicon { flex: 1; }
+  .stank { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 8px; }
+  .stank .sf { flex: 1; }
+  .pill.ghost { background: none; color: var(--primary-color); border: 1px solid var(--primary-color); }
+  .pill:disabled { opacity: .6; cursor: default; }
+  .savebar { position: sticky; bottom: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 10px 16px;
+             border-radius: 14px; background: var(--card-background-color); box-shadow: 0 2px 10px rgba(0,0,0,.3); font-size: 14px; }
+  .savebar.dirty { outline: 2px solid var(--primary-color); }
 
   @keyframes rn-dash { from { stroke-dashoffset: 16; } to { stroke-dashoffset: 0; } }
   @keyframes rn-flow { from { transform: translateX(-22px); } to { transform: translateX(0); } }
@@ -591,9 +883,8 @@ class RennergyPanel extends HTMLElement {
 
   // All entities behind a role. External meters chosen in the settings win
   // over the Rennergy items (PV may consist of several systems).
-  _ids(role) {
-    if (role === "battery_soc" && this._system?.battery_soc) return [this._system.battery_soc];
-    const external = {
+  _external(role) {
+    return {
       pv_power: "pv",
       heat_pump_power: "hp_electric",
       grid_power: "grid",
@@ -601,7 +892,12 @@ class RennergyPanel extends HTMLElement {
       house_power: "house",
       heating_rod_power: "heating_rod",
     }[role];
-    const list = external && this._system?.power_sensors?.[external];
+  }
+
+  _ids(role) {
+    if (role === "battery_soc" && this._system?.battery_soc) return [this._system.battery_soc];
+    const external = this._external(role);
+    const list = external && (this._system?.power_sensors?.[external] || this._system?.inverted_power?.[external]);
     if (list && list.length) return list;
     const own = this._system?.roles?.[role];
     return own ? [own] : [];
@@ -625,7 +921,16 @@ class RennergyPanel extends HTMLElement {
   }
 
   _powerW(role) {
-    return this._sumW(this._ids(role));
+    const sum = this._sumW(this._ids(role));
+    // Sensors with the opposite sign convention, turned around in the settings.
+    const inverted = this._system?.inverted_power?.[this._external(role)];
+    return sum != null && inverted?.length ? -sum : sum;
+  }
+
+  // PV systems with an energy counter: [{eid, name}].
+  _pvSystems() {
+    const list = (this._system.pv_systems || []).filter((p) => p.energy);
+    return list.map((p) => ({ eid: p.energy, name: p.name || this._hass.states[p.energy]?.attributes.friendly_name || p.energy }));
   }
 
   _stat(key) {
@@ -675,8 +980,16 @@ class RennergyPanel extends HTMLElement {
       root.querySelector(".systems").appendChild(select);
     }
 
+    // Heating, control and all values come from the Rennergy; settings are for admins.
+    const tabs = [
+      "overview",
+      "stats",
+      ...(this._system.rennergy ? ["heating", "control", "values"] : []),
+      ...(this._hass.user?.is_admin ? ["settings"] : []),
+    ];
+    if (!tabs.includes(this._tab)) this._tab = "overview";
     const nav = root.querySelector("nav");
-    for (const tab of ["overview", "stats", "heating", "control", "values"]) {
+    for (const tab of tabs) {
       const btn = document.createElement("button");
       btn.textContent = t[tab];
       btn.classList.toggle("active", tab === this._tab);
@@ -691,6 +1004,7 @@ class RennergyPanel extends HTMLElement {
     if (this._history) this._history.drawn = false;
     main.innerHTML = this[`_render_${this._tab}`]();
     this._bind(main);
+    if (this._tab === "settings") this._bindSettings(main);
     this._update();
   }
 
@@ -814,7 +1128,7 @@ class RennergyPanel extends HTMLElement {
       .map((eid) => {
         const st = this._hass.states[eid];
         const name =
-          eid === this._rodTempId() ? t.heating_rod : (st?.attributes.friendly_name || eid).replace(/^EMS [^ ]+ /, "");
+          eid === this._rodTempId() ? t.heating_rod : (st?.attributes.friendly_name || eid).replace(/^(EMS|Rennergy) [^ ]+ /, "");
         return `<div class="tlbl" data-more="${esc(eid)}"><small>${esc(name)}</small><b data-fmt="${esc(eid)}">–</b></div>`;
       })
       .join("");
@@ -963,14 +1277,19 @@ class RennergyPanel extends HTMLElement {
       )
       .join("");
 
+    const banner = this._system.rennergy_error
+      ? `<div class="card action"><ha-icon icon="mdi:lan-disconnect" style="color:var(--rn-heat)"></ha-icon>
+          <div class="grow sub">${t.rennergy_unreachable}</div></div>`
+      : "";
     return `
-      ${this._periodSwitch()}
-      ${this._gauges()}
-      ${chips ? `<div class="card"><h2>${t.energy_period} · <span data-period-label></span></h2><div class="chips">${chips}</div></div>` : ""}
+      ${banner}
       <div class="flows">
         <div class="card"><h2>${t.flow_el}</h2><div class="flowchart" data-flow="el"></div></div>
         <div class="card"><h2>${t.flow_th}</h2><div class="flowchart" data-flow="th"></div></div>
       </div>
+      ${this._periodSwitch()}
+      ${this._gauges()}
+      ${chips ? `<div class="card"><h2>${t.energy_period} · <span data-period-label></span></h2><div class="chips">${chips}</div></div>` : ""}
       ${this._plant()}
       ${this._carCards()}
       <div class="grid">${tiles}</div>`;
@@ -1211,7 +1530,23 @@ class RennergyPanel extends HTMLElement {
     const meters = this._system.energy_meters || {};
     const heat = ["hp_heat", "stove_heat", "heating_rod", "hc1_heat", "hc2_heat"].some((k) => meters[k]);
     const has = (...keys) => keys.some((k) => meters[k]);
-    const chart = (id, title) => `<div class="card"><h2>${esc(title)} · ${t.history}</h2><div class="chart" data-chart="${id}">${t.loading_history}</div></div>`;
+    // Filter chips right at the chart they belong to: PV systems at
+    // electricity, cars at the car chart.
+    const filterChips = (items, color) =>
+      items.length
+        ? `<div class="filters">${items
+            .map(
+              ([id, label]) =>
+                `<button class="${this._hidden.has(id) ? "off" : ""}" data-toggle="${esc(id)}"><i style="background:${color}"></i>${esc(label)}</button>`
+            )
+            .join("")}</div>`
+        : "";
+    const chartFilters = {
+      power: filterChips(this._pvSystems().length > 1 ? this._pvSystems().map((p) => [p.eid, p.name]) : [], COLORS.pv),
+      cars: filterChips((this._system.cars || []).filter((c) => meters[c.id]).map((c) => [c.id, c.name]), COLORS.ecar),
+    };
+    const chart = (id, title) => `<div class="card"><h2>${esc(title)} · ${t.history}</h2>${chartFilters[id] || ""}
+      <div class="chart" data-chart="${id}">${t.loading_history}</div></div>`;
     const charts = [
       has("pv", "grid_import", "grid_export", "consumption") ? chart("power", t.electricity) : "",
       has("hp_heat", "hp_electric") ? chart("hp", t.heat_pump) : "",
@@ -1220,22 +1555,6 @@ class RennergyPanel extends HTMLElement {
       (this._system.loads || []).some((l) => meters[l.id]) ? chart("loads", t.consumers) : "",
       has("water") ? chart("water", t.water) : "",
     ].join("");
-
-    // Filter chips: single PV systems and cars can be hidden in the charts.
-    const filterItems = [
-      ...((meters.pv || []).length > 1
-        ? meters.pv.map((eid) => [eid, this._hass.states[eid]?.attributes.friendly_name || eid, COLORS.pv])
-        : []),
-      ...(this._system.cars || []).filter((c) => meters[c.id]).map((c) => [c.id, c.name, COLORS.ecar]),
-    ];
-    const filters = filterItems.length
-      ? `<div class="filters">${filterItems
-          .map(
-            ([id, label, color]) =>
-              `<button class="${this._hidden.has(id) ? "off" : ""}" data-toggle="${esc(id)}"><i style="background:${color}"></i>${esc(label)}</button>`
-          )
-          .join("")}</div>`
-      : "";
 
     const heatKeys = ["hp_heat", "hp_electric", "heating_rod", "stove_heat"];
     const elecRows = this._sources()
@@ -1269,7 +1588,7 @@ class RennergyPanel extends HTMLElement {
       ? `<div class="card"><h2>${t.heat_pump} + ${t.heating_rod}</h2><div class="rows">${hpRows}</div></div>`
       : "";
     const pvCard =
-      (meters.pv || []).length > 1
+      this._pvSystems().length > 1
         ? `<div class="card"><h2>${t.pv_systems}</h2><div class="rows" data-pv-systems></div></div>`
         : "";
 
@@ -1286,7 +1605,6 @@ class RennergyPanel extends HTMLElement {
     return `
       ${this._periodSwitch()}
       ${this._gauges()}
-      ${filters}
       ${charts}
       ${heat ? `<div class="card"><h2>${t.heat_generation} / ${t.heat_distribution}</h2>
           ${this._stack("heat_gen", t.heat_generation)}${this._stack("heat_dist", t.heat_distribution)}</div>` : ""}
@@ -1337,6 +1655,429 @@ class RennergyPanel extends HTMLElement {
     return groups ? `${head}${groups}` : `<div class="empty">${t.no_controls}</div>`;
   }
 
+  // ---------- settings ----------
+
+  get _ts() {
+    const lang = (this._hass?.language || "en").split("-")[0];
+    return SETTINGS_I18N[lang] || SETTINGS_I18N.en;
+  }
+
+  async _loadSettings() {
+    if (this._settingsLoading) return;
+    this._settingsLoading = true;
+    this._entityOptionsCache = null;
+    try {
+      const res = await this._hass.callWS({ type: "ems/settings/get", entry_id: this._system.entry_id });
+      this._settings = { ...res, entry_id: this._system.entry_id, draft: JSON.parse(JSON.stringify(res.options)), dirty: false };
+    } catch (err) {
+      console.error("EMS: loading settings failed", err);
+      this._settings = { error: String(err.message || err) };
+    }
+    this._settingsLoading = false;
+    if (this._tab === "settings") this._renderShell();
+  }
+
+  _render_settings() {
+    const ts = this._ts;
+    const st = this._settings;
+    if (!st || st.entry_id !== this._system.entry_id) {
+      this._settings = null;
+      this._loadSettings();
+      return `<div class="empty">${this._t.loading}</div>`;
+    }
+    if (st.error) return `<div class="empty">${esc(st.error)}</div>`;
+    const d = st.draft;
+
+    const sections = SETTINGS_SECTIONS.map(
+      ([id, fields]) => `<div class="card"><h2>${esc(ts[`s_${id}`])}</h2><div class="sgrid">
+        ${fields.map(([key, kind, role]) => this._sField(ts.f[key], kind, d[key], `data-opt="${key}"`, role, key)).join("")}
+        ${id === "heat_pump" ? this._sHeatPumpExtra(d) : ""}
+      </div></div>`
+    );
+    // Lists right after the electric sources, tank after the heat sections.
+    const order = [
+      this._sRennergy(d),
+      this._sList("pv_systems"),
+      sections[0],
+      sections[1],
+      sections[2],
+      this._sList("cars"),
+      this._sList("loads"),
+      sections[3],
+      sections[4],
+      sections[5],
+      this._sTank(d),
+      sections[6],
+      this._sActions(d),
+    ];
+    return `<datalist id="ems-ents">${this._entityOptions()}</datalist>
+      ${order.join("")}
+      <div class="savebar ${st.dirty ? "dirty" : ""}">
+        <span data-save-msg>${st.message ? esc(st.message) : st.dirty ? ts.unsaved : ""}</span>
+        <button class="pill" data-save ${st.saving ? "disabled" : ""}>${st.saving ? ts.saving : ts.save}</button>
+      </div>`;
+  }
+
+  _entityOptions() {
+    if (this._entityOptionsCache) return this._entityOptionsCache;
+    const domains = ["sensor", "binary_sensor", "switch", "input_boolean", "number", "input_number"];
+    this._entityOptionsCache = Object.entries(this._hass.states)
+      .filter(([eid]) => domains.includes(eid.split(".")[0]))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([eid, s]) => `<option value="${esc(eid)}">${esc(s.attributes?.friendly_name || "")}</option>`)
+      .join("");
+    return this._entityOptionsCache;
+  }
+
+  // One entity field with live preview. attrs binds it to the draft.
+  _sField(label, kind, value, attrs, role, key) {
+    const ts = this._ts;
+    const fallback = role && this._system.roles?.[role];
+    const placeholder = fallback
+      ? `${ts.from_rennergy}: ${this._hass.states[fallback]?.attributes.friendly_name || fallback}`
+      : "sensor.…";
+    const invert = key === "grid_power" || key === "battery_power";
+    const inverted = invert && (this._settings.draft.invert || []).includes(key);
+    return `<div class="sf" data-kind="${kind}" ${invert ? `data-sign="${key}"` : ""}>
+      <label>${esc(label)}</label>
+      <div class="sfi"><input list="ems-ents" ${attrs} value="${esc(value || "")}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">
+        <button class="clr" data-clear title="${ts.clear}">×</button></div>
+      ${invert ? `<label class="chk"><input type="checkbox" data-invert="${key}" ${inverted ? "checked" : ""}>${ts.invert}</label>` : ""}
+      <div class="sfp" data-preview></div>
+    </div>`;
+  }
+
+  _sHeatPumpExtra(d) {
+    const f = this._ts.f;
+    return `<div class="sf"><label>${f.hp_running_w}</label>
+        <input type="number" min="10" max="5000" step="10" data-opt-num="hp_running_w" value="${esc(d.hp_running_w ?? 300)}"></div>
+      <div class="sf wide"><label>${f.datasheet}</label>
+        <textarea rows="4" data-opt="datasheet" placeholder="A-7/W35 = 2,9&#10;A2/W35 = 3,8&#10;A7/W35 = 4,8">${esc(d.datasheet || "")}</textarea></div>`;
+  }
+
+  _sRennergy(d) {
+    const ts = this._ts;
+    const sys = this._system;
+    const status = sys.rennergy
+      ? `<span class="ok">● ${ts.r_connected}: ${esc(sys.rennergy.host)} · smart1 ${esc(sys.rennergy.serial)} · ${esc(sys.rennergy.version)}</span>`
+      : sys.rennergy_error
+        ? `<span class="warn">● ${ts.r_unreachable}: ${esc(sys.rennergy_error)}</span>`
+        : `<span>${ts.r_none}</span>`;
+    const r = d.rennergy;
+    if (!r) {
+      return `<div class="card"><h2>${ts.s_rennergy}</h2><p class="hint">${ts.s_rennergy_hint}</p>
+        <div class="srow">${status}<button class="pill" data-r-connect>${ts.r_connect}</button></div></div>`;
+    }
+    const num = (k, min, max) =>
+      `<div class="sf"><label>${ts[k]}</label><input type="number" min="${min}" max="${max}" data-r-num="${k}" value="${esc(r[k] ?? "")}"></div>`;
+    const modules = this._settings.modules
+      .map(
+        (m) => `<label class="chk"><input type="checkbox" data-r-module="${m}" ${(r.modules || this._settings.modules).includes(m) ? "checked" : ""}>${esc(this._settings.module_names[m])}</label>`
+      )
+      .join("");
+    return `<div class="card"><h2>${ts.s_rennergy}</h2><p class="hint">${ts.s_rennergy_hint}</p>
+      <div class="srow">${status}</div>
+      <div class="sgrid">
+        <div class="sf"><label>${ts.host}</label><input data-r="host" value="${esc(r.host || "")}" placeholder="192.168.…"></div>
+        ${num("port", 1, 65535)}${num("unit_id", 0, 255)}${num("start_address", 0, 65000)}${num("scan_interval", 5, 300)}
+      </div>
+      <div class="srow"><button class="pill" data-r-test>${ts.r_test}</button><span data-r-result>${esc(this._settings.probe || "")}</span></div>
+      <label class="slabel">${ts.r_areas}</label><div class="modules">${modules}</div>
+      <div class="srow"><button class="pill ghost" data-r-remove>${ts.r_disconnect}</button></div>
+    </div>`;
+  }
+
+  _sList(key) {
+    const ts = this._ts;
+    const [, , fields, icon] = SETTINGS_LISTS.find((l) => l[0] === key);
+    const short = { pv_systems: "pv", cars: "cars", loads: "loads" }[key];
+    const items = this._settings.draft[key] || [];
+    const rows = items
+      .map((item, i) => {
+        const at = (field) => `data-list="${key}" data-idx="${i}" data-field="${field}"`;
+        return `<div class="sitem">
+          <div class="sitem-head">
+            <ha-icon icon="${esc(item.icon || icon)}"></ha-icon>
+            <input class="sname" ${at("name")} value="${esc(item.name || "")}" placeholder="${ts.name}">
+            ${key === "loads" ? `<input class="sicon" ${at("icon")} value="${esc(item.icon || "")}" placeholder="${ts.icon}">` : ""}
+            <button class="clr" data-remove="${key}" data-idx="${i}" title="${ts.remove}">×</button>
+          </div>
+          <div class="sgrid">${fields.map(([field, kind]) => this._sField(ts.f[field], kind, item[field], at(field))).join("")}</div>
+        </div>`;
+      })
+      .join("");
+    return `<div class="card"><h2>${ts[`s_${short}`]}</h2><p class="hint">${ts[`s_${short}_hint`]}</p>
+      ${rows}<button class="pill ghost" data-add="${key}">+ ${ts[{ pv_systems: "pv_new", cars: "car_new", loads: "load_new" }[key]]}</button></div>`;
+  }
+
+  _sTank(d) {
+    const ts = this._ts;
+    const list = d.tank_sensors || [];
+    const rows = list
+      .map((eid, i) => `<div class="stank">${this._sField(`${i + 1}.`, "temp", eid, `data-tank="${i}"`)}
+          <button class="clr" data-tank-remove="${i}" title="${ts.remove}">×</button></div>`)
+      .join("");
+    return `<div class="card"><h2>${ts.s_tank}</h2><p class="hint">${ts.s_tank_hint}</p>${rows}
+      <button class="pill ghost" data-tank-add>+ ${ts.add}</button></div>`;
+  }
+
+  _sActions(d) {
+    const st = this._settings;
+    if (!st.writable_items.length) return "";
+    const ts = this._ts;
+    const select = (key) =>
+      `<div class="sf"><label>${ts.f[key]}</label><select data-opt="${key}">
+        <option value="">${ts.auto_pick}</option>
+        ${st.writable_items.map((i) => `<option value="${esc(i.uid)}" ${d[key] === i.uid ? "selected" : ""}>${esc(i.name)} (${i.address})</option>`).join("")}
+      </select></div>`;
+    const num = (key, def, min, max) =>
+      `<div class="sf"><label>${ts.f[key]}</label><input type="number" min="${min}" max="${max}" data-opt-num="${key}" value="${esc(d[key] ?? def)}"></div>`;
+    return `<div class="card"><h2>${ts.s_actions}</h2><div class="sgrid">
+      ${select("hot_water_item")}${num("hot_water_duration", 60, 5, 600)}
+      ${select("rod_boost_item")}${num("rod_boost_duration", 60, 5, 600)}${num("rod_boost_percent", 100, 1, 100)}
+    </div></div>`;
+  }
+
+  // Live value and plausibility hints below an entity field.
+  _sPreview(field) {
+    const ts = this._ts;
+    const input = field.querySelector("input[list]");
+    const out = field.querySelector("[data-preview]");
+    if (!input || !out) return;
+    const eid = input.value.trim();
+    if (!eid) {
+      out.innerHTML = "";
+      return;
+    }
+    const s = this._hass.states[eid];
+    if (!s) {
+      out.innerHTML = `<span class="warn">${ts.not_found}</span>`;
+      return;
+    }
+    const unit = s.attributes.unit_of_measurement || "";
+    const warn = [];
+    const kind = field.dataset.kind;
+    if (kind === "energy") {
+      if (!["Wh", "kWh", "MWh"].includes(unit)) warn.push(ts.w_energy_unit);
+      else if (!["total", "total_increasing"].includes(s.attributes.state_class)) warn.push(ts.w_total);
+      if (/(today|heute|daily|_day\b|tages|monat|month|week|woche)/i.test(eid + " " + (s.attributes.friendly_name || ""))) warn.push(ts.w_daily);
+    }
+    if (kind === "power" && !["W", "kW", "MW"].includes(unit)) warn.push(ts.w_power_unit);
+    if (kind === "temp" && !["°C", "°F", "K"].includes(unit)) warn.push(ts.w_temp_unit);
+    if (kind === "pct" && unit !== "%") warn.push(ts.w_pct_unit);
+    if (kind === "volume" && !["L", "m³", "gal", "ft³"].includes(unit)) warn.push(ts.w_volume_unit);
+
+    let sign = "";
+    const signKey = field.dataset.sign;
+    const n = parseFloat(s.state);
+    if (signKey && Number.isFinite(n) && Math.abs(n) > 0) {
+      const inverted = (this._settings.draft.invert || []).includes(signKey);
+      const v = (inverted ? -n : n) * (unit === "kW" ? 1000 : 1);
+      const grid = signKey === "grid_power";
+      const text = v > 0 ? (grid ? ts.sign_import : ts.sign_charge) : grid ? ts.sign_export : ts.sign_discharge;
+      sign = `<span class="sign">${ts.sign_now} ${this._fmtPower(v)} → ${text}</span>`;
+    }
+    out.innerHTML = `<span>${esc(s.attributes.friendly_name || eid)} · <b>${esc(this._fmt(eid))}</b></span>${sign}${warn
+      .map((w) => `<span class="warn">⚠ ${esc(w)}</span>`)
+      .join("")}`;
+  }
+
+  _sDirty(main) {
+    this._settings.dirty = true;
+    this._settings.message = "";
+    const bar = main.querySelector(".savebar");
+    if (bar) {
+      bar.classList.add("dirty");
+      bar.querySelector("[data-save-msg]").textContent = this._ts.unsaved;
+    }
+  }
+
+  _bindSettings(main) {
+    const st = this._settings;
+    if (!st?.draft) return;
+    const d = st.draft;
+    const set = (obj, key, value) => {
+      if (value === "" || value == null) delete obj[key];
+      else obj[key] = value;
+    };
+    const rerender = () => this._renderShell();
+
+    main.querySelectorAll(".sf").forEach((f) => this._sPreview(f));
+    main.querySelectorAll("[data-opt]").forEach((el) =>
+      el.addEventListener("input", () => {
+        set(d, el.dataset.opt, el.value.trim());
+        this._sDirty(main);
+        const f = el.closest(".sf");
+        if (f) this._sPreview(f);
+      })
+    );
+    main.querySelectorAll("[data-opt-num]").forEach((el) =>
+      el.addEventListener("input", () => {
+        set(d, el.dataset.optNum, el.value === "" ? null : Number(el.value));
+        this._sDirty(main);
+      })
+    );
+    main.querySelectorAll("[data-list]").forEach((el) =>
+      el.addEventListener("input", () => {
+        const item = d[el.dataset.list][Number(el.dataset.idx)];
+        set(item, el.dataset.field, el.value.trim());
+        this._sDirty(main);
+        const f = el.closest(".sf");
+        if (f) this._sPreview(f);
+        if (el.dataset.field === "icon") el.closest(".sitem")?.querySelector("ha-icon")?.setAttribute("icon", el.value.trim() || "mdi:power-plug");
+      })
+    );
+    main.querySelectorAll("[data-tank]").forEach((el) =>
+      el.addEventListener("input", () => {
+        d.tank_sensors[Number(el.dataset.tank)] = el.value.trim();
+        this._sDirty(main);
+        this._sPreview(el.closest(".sf"));
+      })
+    );
+    main.querySelectorAll("[data-clear]").forEach((el) =>
+      el.addEventListener("click", () => {
+        const input = el.parentElement.querySelector("input");
+        input.value = "";
+        input.dispatchEvent(new Event("input"));
+      })
+    );
+    main.querySelectorAll("[data-invert]").forEach((el) =>
+      el.addEventListener("change", () => {
+        const list = new Set(d.invert || []);
+        if (el.checked) list.add(el.dataset.invert);
+        else list.delete(el.dataset.invert);
+        set(d, "invert", list.size ? [...list] : null);
+        this._sDirty(main);
+        this._sPreview(el.closest(".sf"));
+      })
+    );
+    main.querySelectorAll("[data-add]").forEach((el) =>
+      el.addEventListener("click", () => {
+        const key = el.dataset.add;
+        const prefix = SETTINGS_LISTS.find((l) => l[0] === key)[1];
+        d[key] = [...(d[key] || []), { id: prefix + Math.random().toString(36).slice(2, 8), name: "" }];
+        st.dirty = true;
+        rerender();
+      })
+    );
+    main.querySelectorAll("[data-remove]").forEach((el) =>
+      el.addEventListener("click", () => {
+        d[el.dataset.remove].splice(Number(el.dataset.idx), 1);
+        st.dirty = true;
+        rerender();
+      })
+    );
+    main.querySelector("[data-tank-add]")?.addEventListener("click", () => {
+      d.tank_sensors = [...(d.tank_sensors || []), ""];
+      st.dirty = true;
+      rerender();
+    });
+    main.querySelectorAll("[data-tank-remove]").forEach((el) =>
+      el.addEventListener("click", () => {
+        d.tank_sensors.splice(Number(el.dataset.tankRemove), 1);
+        st.dirty = true;
+        rerender();
+      })
+    );
+
+    // Rennergy connection.
+    main.querySelector("[data-r-connect]")?.addEventListener("click", () => {
+      d.rennergy = { host: "", port: 502, unit_id: 1, start_address: 20000, scan_interval: 15 };
+      st.dirty = true;
+      rerender();
+    });
+    main.querySelector("[data-r-remove]")?.addEventListener("click", () => {
+      delete d.rennergy;
+      st.probe = "";
+      st.dirty = true;
+      rerender();
+    });
+    main.querySelectorAll("[data-r]").forEach((el) =>
+      el.addEventListener("input", () => {
+        d.rennergy[el.dataset.r] = el.value.trim();
+        this._sDirty(main);
+      })
+    );
+    main.querySelectorAll("[data-r-num]").forEach((el) =>
+      el.addEventListener("input", () => {
+        d.rennergy[el.dataset.rNum] = Number(el.value);
+        this._sDirty(main);
+      })
+    );
+    main.querySelectorAll("[data-r-module]").forEach((el) =>
+      el.addEventListener("change", () => {
+        const all = st.modules;
+        const current = new Set(d.rennergy.modules || all);
+        if (el.checked) current.add(el.dataset.rModule);
+        else current.delete(el.dataset.rModule);
+        d.rennergy.modules = all.filter((m) => current.has(m));
+        this._sDirty(main);
+      })
+    );
+    main.querySelector("[data-r-test]")?.addEventListener("click", async () => {
+      const ts = this._ts;
+      const out = main.querySelector("[data-r-result]");
+      out.textContent = ts.r_testing;
+      const r = d.rennergy;
+      try {
+        const res = await this._hass.callWS({
+          type: "ems/rennergy/probe",
+          host: r.host,
+          port: Number(r.port) || 502,
+          unit_id: Number(r.unit_id) || 1,
+          start_address: Number(r.start_address) || 20000,
+        });
+        st.probe = `✓ ${ts.r_ok}: smart1 ${res.serial} · ${res.version} · ${res.count} ${ts.r_values}`;
+        // Preselect the areas the controller actually has.
+        if (!r.modules) r.modules = res.modules;
+        st.dirty = true;
+        rerender();
+      } catch (err) {
+        st.probe = `✗ ${ts.r_failed}: ${err.message || err}`;
+        out.textContent = st.probe;
+      }
+    });
+
+    main.querySelector("[data-save]")?.addEventListener("click", () => this._saveSettings());
+  }
+
+  async _saveSettings() {
+    const st = this._settings;
+    const ts = this._ts;
+    // Drop empty entries: list items without any entity, blank tank rows.
+    const options = JSON.parse(JSON.stringify(st.draft));
+    for (const [key, , fields] of SETTINGS_LISTS) {
+      if (!options[key]) continue;
+      options[key] = options[key].filter((item) => fields.some(([f]) => item[f]));
+      if (!options[key].length) delete options[key];
+    }
+    if (options.tank_sensors) {
+      options.tank_sensors = options.tank_sensors.filter(Boolean);
+      if (!options.tank_sensors.length) delete options.tank_sensors;
+    }
+    if (options.rennergy && !options.rennergy.host) delete options.rennergy;
+    st.saving = true;
+    this._renderShell();
+    try {
+      await this._hass.callWS({ type: "ems/settings/save", entry_id: st.entry_id, options });
+      st.saving = false;
+      st.dirty = false;
+      st.message = ts.saved;
+      this._renderShell();
+      // The entry reloads; afterwards the panel fetches the new configuration.
+      setTimeout(() => {
+        this._settings = null;
+        this._history = null;
+        this._config = null;
+        this._loadConfig();
+      }, 4000);
+    } catch (err) {
+      st.saving = false;
+      st.message = `${ts.save_failed}: ${err.message || err}`;
+      this._renderShell();
+    }
+  }
+
   _render_values() {
     const sys = this._system;
     const groups = sys.modules
@@ -1348,7 +2089,7 @@ class RennergyPanel extends HTMLElement {
               .filter(([role]) => role !== "mode")
               .map(([, eid]) => {
                 const s = this._hass.states[eid];
-                const prefix = `EMS ${mod.name} `;
+                const prefix = `Rennergy ${mod.name} `;
                 const friendly = s?.attributes.friendly_name || i.name;
                 const name = friendly.startsWith(prefix) ? friendly.slice(prefix.length) : friendly;
                 return `<div class="row" data-more="${esc(eid)}" data-search="${esc((name + " " + eid).toLowerCase())}">
@@ -1471,6 +2212,7 @@ class RennergyPanel extends HTMLElement {
     this._updateQuickLoad(main);
     this._updatePeriodValues(main);
     this._updateHistory(main);
+    if (this._tab === "settings" && this._settings?.draft) main.querySelectorAll(".sf").forEach((f) => this._sPreview(f));
     this._updateFlowCharts(main);
   }
 
@@ -1828,15 +2570,14 @@ class RennergyPanel extends HTMLElement {
     const meters = this._system.energy_meters || {};
     const shown = (id) => !this._hidden.has(id);
     // Several PV systems are stacked one by one, each in its own shade.
-    const pvIds = meters.pv || [];
+    const pvList = this._pvSystems();
     const pvShades = [COLORS.pv, "#d99a00", "#f7d154", "#b37f00", "#ffe08a"];
     const pv =
-      pvIds.length > 1
-        ? pvIds.filter(shown).map((eid, i) => ({
-            label: this._hass.states[eid]?.attributes.friendly_name || eid,
-            color: pvShades[pvIds.indexOf(eid) % pvShades.length],
-            values: h.byEntity[eid],
-          }))
+      pvList.length > 1
+        ? pvList
+            .map((p, i) => ({ ...p, color: pvShades[i % pvShades.length] }))
+            .filter((p) => shown(p.eid))
+            .map((p) => ({ label: p.name, color: p.color, values: h.byEntity[p.eid] }))
         : [{ label: t.pv, color: COLORS.pv, values: s.pv }];
     const palette = [COLORS.ecar, "#d36bd1", "#6b8ef2", "#4fc3b0", "#e57373", "#90a4ae"];
     const sets = {
@@ -1881,10 +2622,9 @@ class RennergyPanel extends HTMLElement {
 
     const pvEl = main.querySelector("[data-pv-systems]");
     if (pvEl) {
-      pvEl.innerHTML = (this._system.energy_meters?.pv || [])
-        .map((eid) => {
+      pvEl.innerHTML = this._pvSystems()
+        .map(({ eid, name }) => {
           const sum = (h.byEntity[eid] || []).reduce((a, v) => a + v, 0);
-          const name = this._hass.states[eid]?.attributes.friendly_name || eid;
           return `<div class="row" data-more="${esc(eid)}"><span class="name">${esc(name)}</span>
             <span class="val">${this._fmtNumber(sum, 1)} kWh</span></div>`;
         })

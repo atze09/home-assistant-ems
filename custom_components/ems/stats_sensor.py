@@ -20,8 +20,7 @@ from homeassistant.const import (
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import PERIODS
-from .coordinator import RennergyCoordinator
-from .entity import module_device_info
+from .entity import ems_device_info
 from .stats import (
     BATTERY_CHARGE,
     BATTERY_DISCHARGE,
@@ -48,7 +47,8 @@ _LABELS = {
         BATTERY_DISCHARGE: "Batterie Entladung",
         CONSUMPTION: "Gesamtverbrauch",
         WATER: "Wasserverbrauch",
-        "charging": "Laden",
+        "charged": "Geladen",
+        "energy": "Energie",
         "heat_total": "Wärmeerzeugung gesamt",
         "runtime": "Heizstab Laufzeit",
         "cop": "Wärmepumpe COP aktuell",
@@ -87,7 +87,8 @@ _LABELS = {
         BATTERY_DISCHARGE: "Battery discharge",
         CONSUMPTION: "Total consumption",
         WATER: "Water consumption",
-        "charging": "charging",
+        "charged": "Charged",
+        "energy": "Energy",
         "heat_total": "Heat generation total",
         "runtime": "Heating rod runtime",
         "cop": "Heat pump COP current",
@@ -119,8 +120,8 @@ _LABELS = {
 _HEAT_GENERATORS = ("hp_heat", "stove_heat", HEATING_ROD)
 
 
-def stat_unique_id(serial: str, key: str) -> str:
-    return f"{serial}_stat_{key}"
+def stat_unique_id(entry_id: str, key: str) -> str:
+    return f"{entry_id}_stat_{key}"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -133,6 +134,8 @@ class StatDescription:
     state_class: SensorStateClass | None = SensorStateClass.MEASUREMENT
     precision: int = 1
     icon: str | None = None
+    # Car or consumer the value belongs to (its device).
+    device: str | None = None
 
 
 def build_descriptions(language: str, stats: StatsManager) -> list[StatDescription]:
@@ -168,13 +171,17 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
         "icon": "mdi:water",
     }
     for source in stats.energy_sources:
-        label = labels.get(source) or stats.names.get(source, source)
-        if source.startswith("car"):
-            label = f"{label} {labels['charging']}"
+        device = source if source in stats.devices else None
+        if device:
+            # Named by its device, e.g. "Pool Energie heute".
+            label = labels["charged"] if source in stats.cars else labels["energy"]
+        else:
+            label = labels.get(source, source)
         per_period(
             source,
             lambda p, s=label: f"{s} {labels[p]}",
             lambda p, s=source: stats.energy(s, p),
+            device=device,
             **(water_kwargs if source == WATER else energy_kwargs),
         )
 
@@ -281,7 +288,7 @@ def build_descriptions(language: str, stats: StatsManager) -> list[StatDescripti
     return result
 
 
-class RennergyStatSensor(SensorEntity):
+class EmsStatSensor(SensorEntity):
     """A calculated statistic."""
 
     _attr_has_entity_name = True
@@ -290,19 +297,25 @@ class RennergyStatSensor(SensorEntity):
     def __init__(
         self,
         stats: StatsManager,
-        coordinator: RennergyCoordinator,
+        entry_id: str,
         description: StatDescription,
     ) -> None:
         self._stats = stats
         self._description = description
-        self._attr_unique_id = stat_unique_id(coordinator.system.serial, description.key)
+        self._attr_unique_id = stat_unique_id(entry_id, description.key)
         self._attr_name = description.name
         self._attr_native_unit_of_measurement = description.unit
         self._attr_device_class = description.device_class
         self._attr_state_class = description.state_class
         self._attr_suggested_display_precision = description.precision
         self._attr_icon = description.icon
-        self._attr_device_info: DeviceInfo = module_device_info(coordinator, "statistics")
+        # Values of a car or consumer belong to its own device.
+        device = description.device
+        self._attr_device_info: DeviceInfo = (
+            ems_device_info(entry_id, device, stats.names[device])
+            if device
+            else ems_device_info(entry_id, "statistics", "EMS Statistik")
+        )
 
     @property
     def native_value(self) -> float | None:
