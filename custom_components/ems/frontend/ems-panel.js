@@ -772,6 +772,16 @@ const STYLE = `
   .sfi input { flex: 1; min-width: 0; }
   .clr { border: none; background: none; color: var(--secondary-text-color); font-size: 18px; cursor: pointer; padding: 0 6px; border-radius: 6px; }
   .clr:hover { background: var(--secondary-background-color); }
+  .sf { position: relative; }
+  .sugg { position: absolute; z-index: 5; top: calc(100% - 4px); left: 0; right: 0; max-height: 300px; overflow-y: auto;
+          background: var(--card-background-color); border: 1px solid var(--divider-color, #888); border-radius: 10px;
+          box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+  .sopt { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 7px 10px; cursor: pointer; }
+  .sopt:hover { background: var(--secondary-background-color); }
+  .sopt .sn { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sopt .sv { font-size: 13px; color: var(--secondary-text-color); white-space: nowrap; }
+  .sopt .se { grid-column: 1 / -1; font-size: 11px; color: var(--secondary-text-color); overflow: hidden; text-overflow: ellipsis; }
+  .sopt.fit .sn::before { content: "● "; color: var(--success-color, #43a047); font-size: 10px; }
   .sfp { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--secondary-text-color); min-height: 4px; }
   .sfp b { color: var(--primary-text-color); font-weight: 500; }
   .sfp .warn, .warn { color: var(--warning-color, #ffa600); }
@@ -1791,23 +1801,69 @@ class RennergyPanel extends HTMLElement {
       sections[6],
       this._sActions(d),
     ];
-    return `<datalist id="ems-ents">${this._entityOptions()}</datalist>
-      ${order.join("")}
+    return `${order.join("")}
       <div class="savebar ${st.dirty ? "dirty" : ""}">
         <span data-save-msg>${st.message ? esc(st.message) : st.dirty ? ts.unsaved : ""}</span>
         <button class="pill" data-save ${st.saving ? "disabled" : ""}>${st.saving ? ts.saving : ts.save}</button>
       </div>`;
   }
 
-  _entityOptions() {
+  // Entities that can be assigned, with a lower case search text.
+  _entityIndex() {
     if (this._entityOptionsCache) return this._entityOptionsCache;
     const domains = ["sensor", "binary_sensor", "switch", "input_boolean", "number", "input_number"];
     this._entityOptionsCache = Object.entries(this._hass.states)
       .filter(([eid]) => domains.includes(eid.split(".")[0]))
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([eid, s]) => `<option value="${esc(eid)}">${esc(s.attributes?.friendly_name || "")}</option>`)
-      .join("");
+      .map(([eid, s]) => {
+        const name = s.attributes?.friendly_name || "";
+        return { eid, name, text: `${eid} ${name}`.toLowerCase().replace(/_/g, " ") };
+      });
     return this._entityOptionsCache;
+  }
+
+  // Does the unit of an entity fit the kind of a field?
+  _unitFits(eid, kind) {
+    const unit = this._hass.states[eid]?.attributes?.unit_of_measurement || "";
+    const fits = {
+      energy: ["Wh", "kWh", "MWh"],
+      power: ["W", "kW", "MW"],
+      temp: ["°C", "°F"],
+      pct: ["%"],
+      volume: ["L", "m³"],
+    }[kind];
+    return fits ? fits.includes(unit) : false;
+  }
+
+  // Search by words in name or id ("heizstab temp"); fitting units first.
+  _searchEntities(query, kind) {
+    const words = query.toLowerCase().replace(/_/g, " ").split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    return this._entityIndex()
+      .filter((e) => words.every((w) => e.text.includes(w)))
+      .map((e) => ({ ...e, score: (this._unitFits(e.eid, kind) ? 0 : 1) }))
+      .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
+      .slice(0, 10);
+  }
+
+  _showSuggestions(field) {
+    const input = field.querySelector("input[data-ent]");
+    const box = field.querySelector(".sugg");
+    if (!input || !box) return;
+    const q = input.value.trim();
+    const hits = q.length >= 2 && !this._hass.states[q] ? this._searchEntities(q, field.dataset.kind) : [];
+    if (!hits.length) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    box.innerHTML = hits
+      .map(
+        (e) => `<div class="sopt ${this._unitFits(e.eid, field.dataset.kind) ? "fit" : ""}" data-pick="${esc(e.eid)}">
+          <span class="sn">${esc(e.name || e.eid)}</span><span class="sv">${esc(this._fmt(e.eid))}</span>
+          <span class="se">${esc(e.eid)}</span></div>`
+      )
+      .join("");
+    box.hidden = false;
   }
 
   // One entity field with live preview. attrs binds it to the draft.
@@ -1821,8 +1877,9 @@ class RennergyPanel extends HTMLElement {
     const inverted = invert && (this._settings.draft.invert || []).includes(key);
     return `<div class="sf" data-kind="${kind}" ${invert ? `data-sign="${key}"` : ""}>
       <label>${esc(label)}</label>
-      <div class="sfi"><input list="ems-ents" ${attrs} value="${esc(value || "")}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">
+      <div class="sfi"><input data-ent ${attrs} value="${esc(value || "")}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false">
         <button class="clr" data-clear title="${ts.clear}">×</button></div>
+      <div class="sugg" hidden></div>
       ${invert ? `<label class="chk"><input type="checkbox" data-invert="${key}" ${inverted ? "checked" : ""}>${ts.invert}</label>` : ""}
       <div class="sfp" data-preview></div>
     </div>`;
@@ -1927,7 +1984,7 @@ class RennergyPanel extends HTMLElement {
   // Live value and plausibility hints below an entity field.
   _sPreview(field) {
     const ts = this._ts;
-    const input = field.querySelector("input[list]");
+    const input = field.querySelector("input[data-ent]");
     const out = field.querySelector("[data-preview]");
     if (!input || !out) return;
     const eid = input.value.trim();
@@ -2020,6 +2077,20 @@ class RennergyPanel extends HTMLElement {
         this._sPreview(el.closest(".sf"));
       })
     );
+    main.querySelectorAll("input[data-ent]").forEach((input) => {
+      const field = input.closest(".sf");
+      input.addEventListener("input", () => this._showSuggestions(field));
+      input.addEventListener("focus", () => this._showSuggestions(field));
+      input.addEventListener("blur", () => setTimeout(() => (field.querySelector(".sugg").hidden = true), 150));
+      field.querySelector(".sugg").addEventListener("mousedown", (ev) => {
+        const pick = ev.target.closest("[data-pick]");
+        if (!pick) return;
+        ev.preventDefault();
+        input.value = pick.dataset.pick;
+        input.dispatchEvent(new Event("input"));
+        field.querySelector(".sugg").hidden = true;
+      });
+    });
     main.querySelectorAll("[data-clear]").forEach((el) =>
       el.addEventListener("click", () => {
         const input = el.parentElement.querySelector("input");
