@@ -70,6 +70,7 @@ const I18N = {
     cop: "COP aktuell",
     heat_generation: "Wärmeerzeugung",
     heat_distribution: "Wärmeverteilung",
+    heat_use: "Wärmeverbrauch",
     electricity: "Strom",
     stove: "Ofen",
     hc1: "Heizkreis 1",
@@ -196,6 +197,7 @@ const I18N = {
     cop: "COP now",
     heat_generation: "Heat generation",
     heat_distribution: "Heat distribution",
+    heat_use: "Heat consumption",
     electricity: "Electricity",
     stove: "Stove",
     hc1: "Heating circuit 1",
@@ -525,6 +527,7 @@ const SETTINGS_LISTS = [
 
 const COLORS = {
   pv: "var(--rn-pv)",
+  rod: "var(--rn-rod)",
   battery: "var(--rn-battery)",
   grid: "var(--rn-grid)",
   export: "var(--rn-export)",
@@ -537,6 +540,8 @@ const COLORS = {
 const STYLE = `
   :host {
     --rn-pv: #f2b705;
+    /* Heating rod: cyan, so it never looks like PV (yellow) or the heat pump (orange). */
+    --rn-rod: #26c6da;
     --rn-battery: #3fb37f;
     --rn-grid: #8c8c99;
     --rn-export: #7cc242;
@@ -672,8 +677,8 @@ const STYLE = `
   /* consumers: supply flows from the tank (right) to the left */
   .pipe.out.active .flow::after, .pipe.in.active .ret::after { animation-direction: reverse; }
   .pipe.cable { justify-content: center; }
-  .pipe.cable .line { height: 4px; background: var(--rn-pv); opacity: .3; }
-  .pipe.cable.active .line { opacity: 1; box-shadow: 0 0 8px var(--rn-pv); }
+  .pipe.cable .line { height: 4px; background: var(--rn-rod); opacity: .3; }
+  .pipe.cable.active .line { opacity: 1; box-shadow: 0 0 8px var(--rn-rod); }
   .ptank { grid-column: 3; align-self: stretch; border-radius: 80px; border: 3px solid var(--divider-color, #888);
            display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding: 48px 8px;
            background: var(--secondary-background-color); transition: background 1s ease; min-height: 300px; }
@@ -1303,7 +1308,7 @@ class RennergyPanel extends HTMLElement {
             <div class="sub" data-battery-sub></div>
           </div>`
         : "",
-      this._tile("mdi:heating-coil", COLORS.heat, t.heating_rod, "heating_rod_power"),
+      this._tile("mdi:heating-coil", COLORS.rod, t.heating_rod, "heating_rod_power"),
       this._tile("mdi:heat-pump", COLORS.heatpump, t.heat_pump, "heat_pump_power"),
       this._tile("mdi:car-electric", COLORS.ecar, t.ecar, "ecar_power"),
       this._tile("mdi:thermometer", COLORS.grid, t.outdoor, "outdoor_temp"),
@@ -1388,7 +1393,7 @@ class RennergyPanel extends HTMLElement {
       ["consumption", t.consumption, COLORS.house, "mdi:home-lightning-bolt"],
       ["hp_electric", t.hp_electric, COLORS.heatpump, "mdi:heat-pump"],
       ["hp_heat", t.hp_heat, COLORS.heat, "mdi:fire"],
-      ["heating_rod", t.heating_rod, COLORS.heat, "mdi:heating-coil"],
+      ["heating_rod", t.heating_rod, COLORS.rod, "mdi:heating-coil"],
       ["stove_heat", t.stove, COLORS.heat, "mdi:fireplace"],
       ...(this._system.cars || []).map((c) => [c.id, c.name, COLORS.ecar, "mdi:car-electric"]),
       ...(this._system.loads || []).map((l) => [l.id, l.name, COLORS.house, l.icon || "mdi:power-plug"]),
@@ -1453,7 +1458,7 @@ class RennergyPanel extends HTMLElement {
       m.grid_import ? this._gauge("autarky", t.autarky, 100, "%", 0, COLORS.battery) : "",
       m.pv && m.grid_export ? this._gauge("self_consumption", t.self_consumption, 100, "%", 0, COLORS.pv) : "",
       m.hp_heat && m.hp_electric ? this._gauge("work_ratio", t.work_ratio, 6, "", 2, COLORS.heatpump, t.cop) : "",
-      m.hp_heat && m.hp_electric && m.heating_rod ? this._gauge("work_ratio_rod", t.work_ratio_rod, 6, "", 2, COLORS.heat) : "",
+      m.hp_heat && m.hp_electric && m.heating_rod ? this._gauge("work_ratio_rod", t.work_ratio_rod, 6, "", 2, COLORS.rod) : "",
     ].join("");
     return gauges ? `<div class="gauges">${gauges}</div>` : "";
   }
@@ -1639,6 +1644,7 @@ class RennergyPanel extends HTMLElement {
       has("pv", "grid_import", "grid_export", "consumption") ? chart("power", t.electricity) : "",
       has("hp_heat", "hp_electric") ? chart("hp", t.heat_pump) : "",
       has("stove_heat", "heating_rod") && has("hp_heat") ? chart("heat", t.heat_generation) : "",
+      has("hc1_heat", "hc2_heat") ? chart("heat_use", t.heat_use) : "",
       (this._system.cars || []).some((c) => meters[c.id]) ? chart("cars", t.cars) : "",
       (this._system.loads || []).some((l) => meters[l.id]) ? chart("loads", t.consumers) : "",
       Object.keys(this._counterMeters()).length ? chart("operation", t.operation) : "",
@@ -2461,7 +2467,7 @@ class RennergyPanel extends HTMLElement {
       const right = [];
       if (this._ids("heat_pump_power").length)
         right.push(node("hp", t.heat_pump, "mdi:heat-pump", COLORS.heatpump, this._powerW("heat_pump_power"), { sub: copText() }));
-      const rod = this._rodNode(node, COLORS.heat);
+      const rod = this._rodNode(node, COLORS.rod);
       if (rod) right.push(rod);
       const cars = sys.cars || [];
       cars.forEach((c) =>
@@ -2493,7 +2499,7 @@ class RennergyPanel extends HTMLElement {
     if (ps.hp_heat?.length) left.push(node("hp", t.heat_pump, "mdi:heat-pump", COLORS.heatpump, this._sumW(ps.hp_heat), { dir: 1, sub: copText(), more: ps.hp_heat[0] }));
     if (ps.stove_heat?.length || this._schema("stove_temp"))
       left.push(node("stove", t.stove, "mdi:fireplace", COLORS.heat, this._sumW(ps.stove_heat), { dir: 1, sub: this._fmtTempOpt(this._num(this._schema("stove_temp") || this._role("stove_temp"))) }));
-    const rod = this._rodNode(node, COLORS.pv);
+    const rod = this._rodNode(node, COLORS.rod);
     if (rod) left.push({ ...rod, dir: 1 });
 
     const right = [];
@@ -2760,7 +2766,7 @@ class RennergyPanel extends HTMLElement {
         { label: t.thermal, color: COLORS.heat, values: s.hp_heat, group: 0 },
         { label: t.electric, color: COLORS.heatpump, values: s.hp_electric, group: 1 },
         // The heating rod stacks on the electricity of the heat pump.
-        { label: t.heating_rod, color: COLORS.pv, values: s.heating_rod, group: 1 },
+        { label: t.heating_rod, color: COLORS.rod, values: s.heating_rod, group: 1 },
         {
           label: t.work_ratio,
           color: "var(--primary-text-color)",
@@ -2771,7 +2777,7 @@ class RennergyPanel extends HTMLElement {
       heat: [
         { label: t.heat_pump, color: COLORS.heatpump, values: s.hp_heat },
         { label: t.stove, color: COLORS.heat, values: s.stove_heat },
-        { label: t.heating_rod, color: COLORS.pv, values: s.heating_rod },
+        { label: t.heating_rod, color: COLORS.rod, values: s.heating_rod },
       ],
       cars: (this._system.cars || [])
         .map((c, i) => ({ id: c.id, label: c.name, color: palette[i % palette.length], values: s[c.id] }))
@@ -2782,6 +2788,11 @@ class RennergyPanel extends HTMLElement {
         values: s[l.id],
       })),
       water: [{ label: t.water, color: "#29b6f6", values: s.water }],
+      // Heat used by the heating circuits.
+      heat_use: [
+        { label: t.hc1, color: COLORS.house, values: s.hc1_heat },
+        { label: t.hc2, color: COLORS.ecar, values: s.hc2_heat },
+      ],
       // Running time of the heat pump and the hot water share, starts as a line.
       operation: [
         { label: t.hp_runtime, color: COLORS.heatpump, values: s.hp_runtime, group: 0 },
@@ -2940,7 +2951,7 @@ class RennergyPanel extends HTMLElement {
         [
           [t.heat_pump, val("hp_heat"), COLORS.heatpump],
           [t.stove, val("stove_heat"), COLORS.heat],
-          [t.heating_rod, val("heating_rod"), COLORS.pv],
+          [t.heating_rod, val("heating_rod"), COLORS.rod],
         ],
         "kWh",
         1
@@ -2998,7 +3009,7 @@ class RennergyPanel extends HTMLElement {
     ];
     const consumers = [
       ["house", t.house, p("house_power"), COLORS.house, "mdi:home"],
-      ["rod", t.heating_rod, p("heating_rod_power"), COLORS.heat, "mdi:heating-coil"],
+      ["rod", t.heating_rod, p("heating_rod_power"), COLORS.rod, "mdi:heating-coil"],
       ["hp", t.heat_pump, p("heat_pump_power"), COLORS.heatpump, "mdi:heat-pump"],
       ["car", t.ecar, p("ecar_power"), COLORS.ecar, "mdi:car-electric"],
       ["batc", t.battery_charge, p("battery_charge"), COLORS.battery, "mdi:battery-arrow-up"],

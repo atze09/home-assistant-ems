@@ -31,7 +31,9 @@ Noch offen:
 - Batteriezyklen (Kapazität als Option)
 - Ersparnis € (Tarif und Einspeisevergütung als Option oder Sensor)
 - Statistik: Puffertemperaturen als Linie
-- Automatische Prüfung (hassfest, HACS) als GitHub Action
+- Plausibilitätsprüfung: unmögliche Zählersprünge (mehr Energie je Stunde, als die Leistung
+  erlaubt) in Grafiken und Tachos verwerfen. Anlass: ein externer Batterie-Zähler lieferte
+  etwa 100-fache Werte (mit den Rennergy-Zählern stimmt es). Nur notiert, noch nicht geplant.
 
 ### Berechnete Werte (Stand)
 | Wert | Berechnung | Status |
@@ -52,6 +54,9 @@ Noch offen:
 - Einstellungen-Tab im Panel mit Live-Vorschau, Warnungen und Prüfung des Vorzeichens
 - Beliebig viele PV-Anlagen, E-Autos und Verbraucher; je Auto und Verbraucher ein Gerät
 - Energiefluss ganz oben in der Übersicht
+
+## Automatische Prüfung (umgesetzt)
+- GitHub Action mit hassfest und HACS-Validierung bei jedem Push
 
 ## v0.6: Betrieb und Speicher (umgesetzt)
 - Wärmepumpe Starts und Laufzeit, Warmwasser Ladungen und Ladezeit (je Zeitraum und gesamt)
